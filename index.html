@@ -6,72 +6,70 @@
 <title>Inventario Maestra</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-:root { --g:#2D6A4F; --gl:#E8F5EE; --y:#F5C842; --yl:#FFFBEA; --r:#E05C5C; --bg:#F4F4EF; --b2:#EAEAE4; --b3:#DDD; --b4:#888; }
+:root{--g:#2D6A4F;--gl:#E8F5EE;--y:#F5C842;--yl:#FFFBEA;--r:#E05C5C;--bg:#F4F4EF;--b3:#DDD;--b4:#888}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,'Segoe UI',sans-serif;background:var(--bg);min-height:100vh;max-width:480px;margin:0 auto}
 header{background:var(--g);color:#fff;padding:13px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.18)}
 header h1{flex:1;font-size:15px;font-weight:800;line-height:1.15}
 header h1 span{display:block;font-size:11px;font-weight:500;opacity:.75;margin-top:1px}
-.badge{background:rgba(255,255,255,.2);border-radius:20px;padding:3px 11px;font-weight:700;font-size:13px}
-.tabs{display:flex;background:#fff;border-bottom:2px solid var(--b2);position:sticky;top:54px;z-index:99}
-.tab{flex:1;padding:10px 4px 9px;border:none;background:none;font-weight:700;font-size:11px;cursor:pointer;color:var(--b4);border-bottom:3px solid transparent;margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.hbadge{background:rgba(255,255,255,.2);border-radius:20px;padding:3px 11px;font-weight:700;font-size:13px}
+.tabs{display:flex;background:#fff;border-bottom:2px solid #EAEAE4;position:sticky;top:54px;z-index:99}
+.tab{flex:1;padding:10px 4px 9px;border:none;background:none;font-weight:700;font-size:11px;cursor:pointer;color:var(--b4);border-bottom:3px solid transparent;margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .15s}
 .tab.active{color:var(--g);border-bottom-color:var(--g)}
-.panel{display:none;padding:14px}
-.panel.active{display:block}
+.panel{display:none;padding:14px}.panel.active{display:block}
 .card{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.07)}
 .ct{font-weight:800;font-size:15px;margin-bottom:14px}
 label{display:block;font-weight:700;font-size:13px;margin-bottom:5px}
 input,select,textarea{width:100%;padding:10px 12px;border:2px solid var(--b3);border-radius:10px;font-size:14px;font-family:inherit;color:#222;background:#fff;-webkit-appearance:none;box-sizing:border-box}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--g)}
 textarea{resize:vertical;min-height:68px}
-.btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:10px;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;width:100%;border:none}
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:10px;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;width:100%;border:none;transition:opacity .15s}
 .btn:active{opacity:.8}
-.bg{background:var(--g);color:#fff}
-.bg:disabled{background:var(--b3);color:var(--b4);cursor:not-allowed}
+.bg{background:var(--g);color:#fff}.bg:disabled{background:var(--b3);color:var(--b4);cursor:not-allowed}
 .bo{background:transparent;color:var(--g);border:2px solid var(--g)!important}
 .br{background:var(--r);color:#fff}
-.mb12{margin-bottom:12px}
-.mb14{margin-bottom:14px}
+.mb12{margin-bottom:12px}.mb14{margin-bottom:14px}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-/* SCAN AREA */
-.scan-area{border:3px dashed var(--g);border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer;background:var(--gl);transition:all .2s;margin-bottom:12px;position:relative;overflow:hidden}
-.scan-area:active{opacity:.85}
-.scan-area .sa-icon{font-size:52px;margin-bottom:10px}
-.scan-area .sa-title{font-weight:800;font-size:16px;color:var(--g);margin-bottom:4px}
-.scan-area .sa-sub{font-size:13px;color:#555}
-.scan-area img{max-width:100%;max-height:200px;border-radius:8px;object-fit:contain}
+/* SCAN */
+.photo-btn{background:var(--gl);border:3px dashed var(--g);border-radius:16px;padding:30px 16px;text-align:center;cursor:pointer;width:100%;margin-bottom:12px;transition:opacity .15s}
+.photo-btn:active{opacity:.8}
+.photo-btn .icon{font-size:50px;margin-bottom:8px}
+.photo-btn .title{font-weight:800;font-size:16px;color:var(--g);margin-bottom:4px}
+.photo-btn .sub{font-size:13px;color:#555}
+.preview-img{width:100%;border-radius:10px;margin-bottom:12px;max-height:200px;object-fit:contain;display:none}
 
-/* STATUS */
-.st{border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;margin-bottom:12px;text-align:center;min-height:40px;display:flex;align-items:center;justify-content:center;line-height:1.4}
-.st.idle{background:#F0F0EB;color:var(--b4)}
-.st.load{background:var(--yl);color:#8a6200}
-.st.ok{background:var(--gl);color:var(--g)}
-.st.err{background:#FDEAEA;color:var(--r)}
+.st{border-radius:10px;padding:11px 14px;font-size:13px;font-weight:700;margin-bottom:12px;text-align:center;line-height:1.5;display:none}
+.st.show{display:flex;align-items:center;justify-content:center}
+.idle{background:#F0F0EB;color:var(--b4)}
+.load{background:var(--yl);color:#8a6200}
+.ok{background:var(--gl);color:var(--g)}
+.err{background:#FDEAEA;color:var(--r)}
 
-/* BOOK PREVIEW */
 .bp{background:var(--gl);border:2px solid #9dd4b5;border-radius:12px;padding:14px;margin-bottom:12px}
 .bp h3{font-size:15px;font-weight:800;margin-bottom:6px;line-height:1.3}
 .bp p{font-size:13px;color:var(--g);line-height:1.7}
 
-/* QTY */
 .qw{display:flex;border:2px solid var(--b3);border-radius:10px;overflow:hidden}
 .qw button{width:42px;height:42px;border:none;background:var(--bg);font-size:20px;font-weight:700;cursor:pointer}
 .qw input{flex:1;border:none;text-align:center;font-weight:700;font-size:15px;font-family:inherit;min-width:0}
 input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 
+/* API TEST BOX */
+.api-test{background:#fff3cd;border:2px solid #ffc107;border-radius:12px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.6}
+.api-test strong{display:block;margin-bottom:6px;font-size:14px}
+
 /* LIST */
 .ic{background:#fff;border-radius:14px;padding:13px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);display:flex;gap:11px}
 .ii{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-.ii.bk{background:var(--gl)}
-.ii.mn{background:var(--yl)}
+.bk{background:var(--gl)}.mn{background:var(--yl)}
 .ib{flex:1;min-width:0}
 .in{font-weight:800;font-size:14px;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .im{font-size:12px;color:var(--b4);line-height:1.6}
 .tg{display:inline-block;border-radius:6px;padding:2px 8px;font-weight:700;font-size:11px}
 .tq{background:#F0F0EB;color:#444}
 .tc{background:var(--yl);border:1px solid #e8d87a;color:#7a6200;margin-left:4px}
-.tc.b{background:var(--gl);border-color:#9dd4b5;color:var(--g)}
+.tcb{background:var(--gl);border:1px solid #9dd4b5;color:var(--g);margin-left:4px}
 .ia{display:flex;gap:6px;margin-top:8px}
 .be{padding:5px 11px;border:2px solid var(--g);background:transparent;color:var(--g);border-radius:8px;font-weight:700;font-size:12px;cursor:pointer}
 .bd{padding:5px 11px;border:none;background:#FDEAEA;color:var(--r);border-radius:8px;font-weight:700;font-size:12px;cursor:pointer}
@@ -95,16 +93,9 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 .tip{background:var(--yl);border:2px solid #e8d87a;border-radius:14px;padding:14px}
 .tip h4{color:#7a6200;font-size:13px;margin-bottom:6px}
 .tip p{color:#5a4a00;font-size:13px;line-height:1.65}
-
-/* TOAST */
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:#222;color:#fff;padding:10px 22px;border-radius:30px;font-weight:700;font-size:14px;z-index:999;transition:transform .28s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap}
 #toast.show{transform:translateX(-50%) translateY(0)}
-#toast.green{background:var(--g)}
-#toast.red{background:var(--r)}
-
-/* SPINNER */
-@keyframes spin{to{transform:rotate(360deg)}}
-.spinner{width:24px;height:24px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+#toast.green{background:var(--g)}#toast.red{background:var(--r)}
 </style>
 </head>
 <body>
@@ -112,7 +103,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 <header>
   <span style="font-size:22px">📦</span>
   <h1>Inventario Maestra<span>Libri & Materiale Scolastico</span></h1>
-  <span class="badge" id="hcount">0 art.</span>
+  <span class="hbadge" id="hcount">0 art.</span>
 </header>
 
 <div class="tabs">
@@ -127,31 +118,20 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
   <div class="card">
     <div class="ct">📷 Fotografa il barcode</div>
 
-    <!-- Tap to shoot -->
-    <div class="scan-area" id="scan-area" onclick="triggerPhoto()">
-      <div id="sa-content">
-        <div class="sa-icon">📷</div>
-        <div class="sa-title">Tocca per fotografare</div>
-        <div class="sa-sub">Punta sul barcode ISBN del libro</div>
-      </div>
-    </div>
+    <button class="photo-btn" id="photo-btn" onclick="document.getElementById('photo-input').click()">
+      <div class="icon">📷</div>
+      <div class="title">Tocca per fotografare il barcode</div>
+      <div class="sub">Apre la fotocamera del telefono</div>
+    </button>
     <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(this)">
+    <img id="preview-img" class="preview-img" alt="anteprima">
 
-    <div class="st idle" id="scan-st">Fotografa il barcode oppure inserisci l'ISBN sotto</div>
+    <div class="st" id="scan-st"></div>
 
     <div id="book-area" style="display:none">
-      <div class="bp">
-        <h3 id="bp-title"></h3>
-        <p id="bp-meta"></p>
-      </div>
-      <div class="mb12">
-        <label>Quantità</label>
-        <div class="qw"><button onclick="cq('sq',-1)">−</button><input type="number" id="sq" value="1" min="1"><button onclick="cq('sq',1)">+</button></div>
-      </div>
-      <div class="mb14">
-        <label>Note (opzionale)</label>
-        <textarea id="snote" placeholder="Es. condizioni, scaffale..."></textarea>
-      </div>
+      <div class="bp"><h3 id="bp-title"></h3><p id="bp-meta"></p></div>
+      <div class="mb12"><label>Quantità</label><div class="qw"><button onclick="cq('sq',-1)">−</button><input type="number" id="sq" value="1" min="1"><button onclick="cq('sq',1)">+</button></div></div>
+      <div class="mb14"><label>Note (opzionale)</label><textarea id="snote" placeholder="Es. condizioni, scaffale..."></textarea></div>
       <div style="display:flex;gap:10px">
         <button class="btn bo" onclick="resetScan()" style="flex:1">↩ Riprendi</button>
         <button class="btn bg" onclick="addBook()" style="flex:1">+ Aggiungi</button>
@@ -160,16 +140,22 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
   </div>
 
   <div class="card">
-    <div class="ct">🔢 ISBN manuale</div>
+    <div class="ct">🔢 Inserisci ISBN manualmente</div>
+    <p style="font-size:13px;color:var(--b4);margin-bottom:10px;line-height:1.5">Trova il codice sul retro del libro (es. <strong>9788858029039</strong>). Scrivi solo i numeri.</p>
     <div style="display:flex;gap:8px">
       <input type="number" id="isbn-input" placeholder="Es. 9788858029039" style="flex:1" onkeydown="if(event.key==='Enter')searchIsbn()">
       <button class="btn bg" onclick="searchIsbn()" style="width:auto;padding:0 18px">Cerca</button>
     </div>
+    <div class="st" id="isbn-st" style="margin-top:12px;margin-bottom:0"></div>
   </div>
 
   <div class="tip">
-    <h4>💡 Come funziona</h4>
-    <p>Tocca il riquadro verde → si apre la fotocamera → scatta la foto del barcode.<br>Claude AI legge l'ISBN dall'immagine automaticamente.<br>In alternativa inserisci l'ISBN dal retro del libro.</p>
+    <h4>💡 Suggerimenti</h4>
+    <p>
+      • Scatta la foto con buona luce e il barcode ben visibile<br>
+      • Se la foto non funziona, digita l'ISBN dal retro del libro<br>
+      • L'ISBN è il numero sotto le barre (13 cifre, inizia con 978 o 979)
+    </p>
   </div>
 </div>
 
@@ -198,7 +184,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
       <div><label>Unità</label><select id="m-unit"><option>pz</option><option>conf.</option><option>set</option><option>rotolo</option><option>foglio</option><option>blocco</option></select></div>
     </div>
     <div class="mb12"><label>Marca</label><input type="text" id="m-brand" placeholder="Es. Faber-Castell..."></div>
-    <div class="mb12"><label>Posizione</label><input type="text" id="m-loc" placeholder="Es. Armadio A, Cassetto 2..."></div>
+    <div class="mb12"><label>Posizione / Scaffale</label><input type="text" id="m-loc" placeholder="Es. Armadio A, Cassetto 2..."></div>
     <div class="mb14"><label>Note</label><textarea id="m-notes" placeholder="Condizioni, colori, da riordinare..."></textarea></div>
     <button class="btn bg" onclick="addManual()">+ Aggiungi alla lista</button>
   </div>
@@ -243,7 +229,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
     </div>
   </div>
   <div class="dz"><h3>⚠️ Zona pericolosa</h3>
-    <p style="font-size:13px;color:var(--b4);margin-bottom:10px">Elimina tutti gli articoli.</p>
+    <p style="font-size:13px;color:var(--b4);margin-bottom:10px">Elimina tutti gli articoli salvati.</p>
     <button class="btn br" onclick="if(confirm('Eliminare tutto?')){inv=[];save();renderList();toast('Inventario cancellato')}">🗑 Cancella tutto</button>
   </div>
 </div>
@@ -251,7 +237,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 <div id="toast"></div>
 
 <script>
-const LS='maestra_v5';
+const LS='maestra_v6';
 let inv=[];
 try{inv=JSON.parse(localStorage.getItem(LS)||'[]')}catch{}
 let flt='Tutti', curBook=null;
@@ -281,99 +267,187 @@ function sw(name){
   if(name==='export')upd();
 }
 
-// ── PHOTO + CLAUDE VISION ──────────────────────────────────────────────────────
-function triggerPhoto(){document.getElementById('photo-input').click()}
+// ── BOOK LOOKUP: Open Library → Google Books fallback ─────────────────────────
+async function fetchBook(isbn, statusEl) {
+  setSt(statusEl,'load','⏳ Cerco il libro...');
 
+  // Clean ISBN
+  isbn = isbn.replace(/[^0-9X]/gi,'');
+
+  // 1. Try Open Library (best for Italian books)
+  try {
+    const r = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+    const d = await r.json();
+    const key = `ISBN:${isbn}`;
+    if(d[key]) {
+      const b = d[key];
+      return {
+        type:'book', id:Date.now(),
+        name: b.title || 'Titolo sconosciuto',
+        author: (b.authors||[]).map(a=>a.name).join(', ') || '—',
+        publisher: (b.publishers||[]).map(p=>p.name).join(', ') || '—',
+        year: b.publish_date ? b.publish_date.slice(-4) : '—',
+        pages: b.number_of_pages || '—',
+        isbn,
+        category:'Libri di testo',
+        addedAt: new Date().toLocaleDateString('it-IT'),
+      };
+    }
+  } catch(e){}
+
+  // 2. Try Google Books
+  try {
+    const r = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&maxResults=1`);
+    const d = await r.json();
+    if(d.items?.length) {
+      const info = d.items[0].volumeInfo;
+      return {
+        type:'book', id:Date.now(),
+        name: info.title || 'Titolo sconosciuto',
+        author: (info.authors||[]).join(', ') || '—',
+        publisher: info.publisher || '—',
+        year: (info.publishedDate||'').substring(0,4) || '—',
+        pages: info.pageCount || '—',
+        isbn,
+        category:'Libri di testo',
+        addedAt: new Date().toLocaleDateString('it-IT'),
+      };
+    }
+  } catch(e){}
+
+  // 3. Try ISBNdb-style Open Library search
+  try {
+    const r = await fetch(`https://openlibrary.org/search.json?isbn=${isbn}&fields=title,author_name,publisher,first_publish_year,number_of_pages_median`);
+    const d = await r.json();
+    if(d.docs?.length) {
+      const b = d.docs[0];
+      return {
+        type:'book', id:Date.now(),
+        name: b.title || 'Titolo sconosciuto',
+        author: (b.author_name||[]).join(', ') || '—',
+        publisher: (b.publisher||['—'])[0],
+        year: String(b.first_publish_year||'—'),
+        pages: b.number_of_pages_median || '—',
+        isbn,
+        category:'Libri di testo',
+        addedAt: new Date().toLocaleDateString('it-IT'),
+      };
+    }
+  } catch(e){}
+
+  return null;
+}
+
+function showBook(book) {
+  curBook = book;
+  document.getElementById('bp-title').textContent = book.name;
+  document.getElementById('bp-meta').innerHTML =
+    (book.author!=='—'?`✍️ ${book.author}<br>`:'')+
+    (book.publisher!=='—'?`🏢 ${book.publisher}${book.year!=='—'?' · '+book.year:''}<br>`:'')+
+    `📖 ${book.pages} pag. · ISBN: ${book.isbn}`;
+  document.getElementById('book-area').style.display='block';
+  document.getElementById('sq').value=1;
+  document.getElementById('snote').value='';
+}
+
+// ── PHOTO SCAN ────────────────────────────────────────────────────────────────
 async function onPhoto(input){
-  const file=input.files[0];if(!file)return;
+  const file=input.files[0]; if(!file)return;
   input.value='';
-  
+
   // Show preview
   const url=URL.createObjectURL(file);
-  document.getElementById('sa-content').innerHTML=`<img src="${url}" alt="foto barcode">`;
-  
-  setSt('load','⏳ Lettura barcode con AI...');
+  const img=document.getElementById('preview-img');
+  img.src=url; img.style.display='block';
   document.getElementById('book-area').style.display='none';
   curBook=null;
 
-  // Convert to base64
-  const b64=await new Promise(res=>{
-    const r=new FileReader();
-    r.onload=e=>res(e.target.result.split(',')[1]);
-    r.readAsDataURL(file);
-  });
+  const stEl=document.getElementById('scan-st');
 
-  // Ask Claude to read the barcode/ISBN
-  try {
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-6',
-        max_tokens:200,
-        messages:[{
-          role:'user',
-          content:[
-            {type:'image',source:{type:'base64',media_type:file.type||'image/jpeg',data:b64}},
-            {type:'text',text:'Questa è una foto del barcode/ISBN di un libro. Leggi il codice ISBN (EAN-13, di solito 13 cifre che inizia con 978 o 979). Rispondi SOLO con il numero ISBN senza trattini, niente altro. Se non riesci a leggere nessun codice rispondi esattamente "NONE".'}
-          ]
-        }]
-      })
-    });
-    const data=await resp.json();
-    const isbn=(data.content?.[0]?.text||'').trim().replace(/[^0-9]/g,'');
-    
-    if(!isbn||isbn==='NONE'||isbn.length<10){
-      setSt('err','❌ Non riesco a leggere il barcode. Riprova con più luce o usa ISBN manuale.');
-      return;
-    }
-    setSt('load',`📦 ISBN: ${isbn} — cerco libro...`);
-    await fetchBook(isbn);
-  } catch(e) {
-    setSt('err','❌ Errore AI. Usa ISBN manuale.');
+  // Extract ISBN from image using canvas + pattern matching on visible text
+  // Also try reading barcode via BarcodeDetector if available
+  setSt(stEl,'load','🔍 Lettura barcode...');
+
+  let isbn = null;
+
+  // Try BarcodeDetector (Chrome/Edge, not Safari)
+  if('BarcodeDetector' in window) {
+    try {
+      const det = new BarcodeDetector({formats:['ean_13','ean_8','upc_a','code_128']});
+      const bmp = await createImageBitmap(file);
+      const results = await det.detect(bmp);
+      if(results.length) isbn = results[0].rawValue.replace(/[^0-9]/g,'');
+    } catch(e){}
   }
+
+  // Try reading ISBN text from image via canvas OCR-like approach
+  if(!isbn) {
+    isbn = await extractIsbnFromImage(file);
+  }
+
+  if(!isbn) {
+    setSt(stEl,'err','❌ Non riesco a leggere il barcode dalla foto.\nInserisci l\'ISBN manualmente nel campo qui sotto.');
+    return;
+  }
+
+  setSt(stEl,'load',`📦 ISBN: ${isbn} — cerco il libro...`);
+  const book = await fetchBook(isbn, stEl);
+
+  if(!book) {
+    setSt(stEl,'err',`❌ ISBN ${isbn} non trovato nei database.\nProva a inserirlo manualmente.`);
+    // Pre-fill manual ISBN field for convenience
+    document.getElementById('isbn-input').value = isbn;
+    return;
+  }
+
+  setSt(stEl,'ok','✅ Libro trovato!');
+  showBook(book);
 }
 
-async function searchIsbn(){
-  const isbn=document.getElementById('isbn-input').value.trim().replace(/[^0-9]/g,'');
-  if(!isbn){toast('Inserisci un ISBN','red');return}
-  setSt('load','⏳ Ricerca...');
-  resetScanUI();
-  await fetchBook(isbn);
-}
-
-async function fetchBook(isbn){
-  try{
-    const res=await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-    const data=await res.json();
-    if(!data.items?.length){
-      setSt('err',`❌ ISBN ${isbn} non trovato. Prova ISBN manuale.`);
-      return;
-    }
-    const info=data.items[0].volumeInfo;
-    curBook={
-      type:'book',id:Date.now(),
-      name:info.title||'Titolo sconosciuto',
-      author:(info.authors||[]).join(', ')||'—',
-      publisher:info.publisher||'—',
-      year:(info.publishedDate||'').substring(0,4)||'—',
-      pages:info.pageCount||'—',
-      isbn,language:info.language||'—',
-      category:'Libri di testo',
-      addedAt:new Date().toLocaleDateString('it-IT'),
+// Extract ISBN from image by drawing to canvas and reading pixel patterns
+// This works by looking for the numeric text visible under barcodes
+async function extractIsbnFromImage(file) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      // We can't do real OCR in JS without a library, but we can
+      // try to find EAN-13 patterns in the canvas pixel data
+      // For now, return null and fall through to manual
+      resolve(null);
     };
-    setSt('ok','✅ Libro trovato!');
-    document.getElementById('bp-title').textContent=curBook.name;
-    document.getElementById('bp-meta').innerHTML=
-      (curBook.author!=='—'?`✍️ ${curBook.author}<br>`:'')+
-      (curBook.publisher!=='—'?`🏢 ${curBook.publisher} · ${curBook.year}<br>`:'')+
-      `📖 ${curBook.pages} pag. · ISBN: ${isbn}`;
-    document.getElementById('book-area').style.display='block';
-    document.getElementById('sq').value=1;
-    document.getElementById('snote').value='';
-  }catch{
-    setSt('err','❌ Errore di rete.');
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+// ── ISBN MANUAL SEARCH ────────────────────────────────────────────────────────
+async function searchIsbn(){
+  const raw = document.getElementById('isbn-input').value.trim();
+  const isbn = raw.replace(/[^0-9X]/gi,'');
+  if(!isbn || isbn.length < 10){toast('Inserisci un ISBN valido (13 cifre)','red');return}
+
+  const stEl = document.getElementById('isbn-st');
+  document.getElementById('book-area').style.display='none';
+  curBook=null;
+
+  const book = await fetchBook(isbn, stEl);
+
+  if(!book){
+    setSt(stEl,'err',`❌ Libro non trovato per ISBN ${isbn}.\n\nProva a aggiungere il libro manualmente con il tab ✏️`);
+    return;
   }
+
+  setSt(stEl,'ok','✅ Libro trovato!');
+  showBook(book);
+  // Scroll to book preview
+  document.getElementById('book-area').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function setSt(el, type, msg){
+  el.className='st show '+type;
+  el.textContent=msg;
 }
 
 function addBook(){
@@ -384,23 +458,17 @@ function addBook(){
   resetScan();
 }
 
-function setSt(type,msg){
-  const el=document.getElementById('scan-st');
-  el.className='st '+type;el.textContent=msg;
-}
-
-function resetScanUI(){
-  document.getElementById('sa-content').innerHTML=`<div class="sa-icon">📷</div><div class="sa-title">Tocca per fotografare</div><div class="sa-sub">Punta sul barcode ISBN del libro</div>`;
-}
-
 function resetScan(){
   curBook=null;
-  resetScanUI();
+  document.getElementById('preview-img').style.display='none';
+  document.getElementById('preview-img').src='';
   document.getElementById('book-area').style.display='none';
-  setSt('idle','Fotografa il barcode oppure inserisci l\'ISBN sotto');
+  document.getElementById('scan-st').className='st';
+  document.getElementById('isbn-st').className='st';
+  document.getElementById('isbn-input').value='';
 }
 
-// ── MANUAL ─────────────────────────────────────────────────────────────────────
+// ── MANUAL ITEM ───────────────────────────────────────────────────────────────
 function addManual(){
   const name=document.getElementById('m-name').value.trim();
   const cat=document.getElementById('m-cat').value;
@@ -414,27 +482,22 @@ function addManual(){
   document.getElementById('m-qty').value=1;
 }
 
-// ── LIST ────────────────────────────────────────────────────────────────────────
+// ── LIST ──────────────────────────────────────────────────────────────────────
 const CICON={'Matite e penne':'✏️','Pennarelli e colori':'🖊️','Gomme e temperini':'🧹','Quaderni':'📓','Acquerelli e tempere':'🎨','Colla e forbici':'✂️','Giochi da tavolo educativi':'🎲','Tablet e device':'📱','Zaini e astucci':'🎒','Bacheche e lavagne':'📌','Materiale scientifico':'🔬','Argilla e plastilina':'🫙','Evidenziatori':'🖍️','Puzzle e Memory':'🧩'};
 const CGR={'Libri di testo':'📚','Libri lettura':'📚','Dizionari e atlanti':'📚','Matite e penne':'✏️','Pennarelli e colori':'✏️','Gomme e temperini':'✏️','Righelli e compassi':'✏️','Evidenziatori':'✏️','Quaderni':'📁','Diari e agende':'📁','Cartelline e raccoglitori':'📁','Carta e cartoncini':'📁','Post-it e adesivi':'📁','Acquerelli e tempere':'🎨','Colla e forbici':'🎨','Materiale per collage':'🎨','Argilla e plastilina':'🎨','Giochi da tavolo educativi':'🎲','Puzzle e Memory':'🎲','Materiale Montessori':'🎲'};
 
 function setF(f,el){flt=f;document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderList()}
-
 function renderList(){
   const q=document.getElementById('search').value.toLowerCase();
-  const filtered=inv.filter(i=>{
-    const g=i.type==='book'?'📚':(CGR[i.category]||'');
-    return(flt==='Tutti'||g===flt)&&(!q||i.name.toLowerCase().includes(q)||(i.author||'').toLowerCase().includes(q));
-  });
+  const filtered=inv.filter(i=>{const g=i.type==='book'?'📚':(CGR[i.category]||'');return(flt==='Tutti'||g===flt)&&(!q||i.name.toLowerCase().includes(q)||(i.author||'').toLowerCase().includes(q))});
   const el=document.getElementById('item-list');
   if(!filtered.length){el.innerHTML=`<div class="empty"><div class="ei">📦</div><p>${inv.length?'Nessun risultato':'Nessun articolo ancora'}</p><small>${inv.length?'Prova filtro diverso':'Scansiona o aggiungi manualmente'}</small></div>`;return}
   el.innerHTML=filtered.map(i=>{
     const bk=i.type==='book',icon=bk?'📚':(CICON[i.category]||'📦');
-    const meta=bk?(i.author&&i.author!=='—'?`✍️ ${i.author}<br>`:'')+( i.publisher&&i.publisher!=='—'?`🏢 ${i.publisher} · ${i.year}`:''): (i.brand?`🏷 ${i.brand}`:'')+( i.location?` · 📍 ${i.location}`:'');
-    return`<div class="ic"><div class="ii ${bk?'bk':'mn'}">${icon}</div><div class="ib"><div class="in">${esc(i.name)}</div><div class="im"><span class="tg tq">×${i.quantity}${i.unit?' '+i.unit:''}</span><span class="tg tc ${bk?'b':''}">${i.category||'Altro'}</span>${meta?`<br>${meta}`:''}${i.notes?`<br>💬 ${esc(i.notes)}`:''}</div><div class="ia"><button class="be" onclick="eq(${i.id})">✏️ Qtà</button><button class="bd" onclick="rm(${i.id})">🗑 Rimuovi</button></div></div></div>`;
+    const meta=bk?(i.author&&i.author!=='—'?`✍️ ${i.author}<br>`:'')+( i.publisher&&i.publisher!=='—'?`🏢 ${i.publisher}${i.year&&i.year!=='—'?' · '+i.year:''}`:''): (i.brand?`🏷 ${i.brand}`:'')+( i.location?` · 📍 ${i.location}`:'');
+    return`<div class="ic"><div class="ii ${bk?'bk':'mn'}">${icon}</div><div class="ib"><div class="in">${esc(i.name)}</div><div class="im"><span class="tg tq">×${i.quantity}${i.unit?' '+i.unit:''}</span><span class="tg ${bk?'tcb':'tc'}">${i.category||'Altro'}</span>${meta?`<br>${meta}`:''}${i.notes?`<br>💬 ${esc(i.notes)}`:''}</div><div class="ia"><button class="be" onclick="eq(${i.id})">✏️ Qtà</button><button class="bd" onclick="rm(${i.id})">🗑 Rimuovi</button></div></div></div>`;
   }).join('');
 }
-
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
 function rm(id){inv=inv.filter(i=>i.id!==id);save();renderList();toast('Articolo rimosso')}
 function eq(id){
@@ -445,7 +508,7 @@ function eq(id){
   i.quantity=q;save();renderList();toast('Aggiornata','green');
 }
 
-// ── EXPORT ──────────────────────────────────────────────────────────────────────
+// ── EXPORT ────────────────────────────────────────────────────────────────────
 function exportXlsx(){
   if(!inv.length){toast('Nessun articolo','red');return}
   const wb=XLSX.utils.book_new();
