@@ -32,10 +32,7 @@ textarea{resize:vertical;min-height:68px}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
 /* API KEY SETUP */
-.setup-box{background:#fff8e1;border:2px solid #ffc107;border-radius:14px;padding:16px;margin-bottom:14px}
-.setup-box h3{font-size:14px;font-weight:800;margin-bottom:8px;color:#7a5000}
-.setup-box p{font-size:12px;color:#5a4000;line-height:1.6;margin-bottom:10px}
-.setup-box a{color:var(--g);font-weight:700}
+
 
 .photo-btn{background:var(--gl);border:3px dashed var(--g);border-radius:16px;padding:28px 16px;text-align:center;cursor:pointer;width:100%;margin-bottom:12px}
 .photo-btn:active{opacity:.8}
@@ -50,6 +47,7 @@ textarea{resize:vertical;min-height:68px}
 .load{background:var(--yl);color:#8a6200}
 .ok{background:var(--gl);color:var(--g)}
 .err{background:#FDEAEA;color:var(--r)}
+.warn{background:#FFF3CD;color:#856404}
 
 .bp{background:var(--gl);border:2px solid #9dd4b5;border-radius:12px;padding:14px;margin-bottom:12px}
 .bp h3{font-size:15px;font-weight:800;margin-bottom:6px;line-height:1.3}
@@ -114,15 +112,6 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 <!-- SCAN -->
 <div class="panel active" id="panel-scan">
 
-  <!-- API KEY SETUP (shown if no key saved) -->
-  <div class="setup-box" id="setup-box" style="display:none">
-    <h3>🔑 Configura API Key (una volta sola)</h3>
-    <p>Per leggere il barcode dalla foto serve una API key di Anthropic.<br>
-    Vai su <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> → crea una key → incollala qui sotto.</p>
-    <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." style="margin-bottom:8px;font-family:monospace;font-size:12px">
-    <button class="btn bg" onclick="saveApiKey()">💾 Salva e continua</button>
-  </div>
-
   <div class="card" id="scan-card">
     <div class="ct">📷 Fotografa il barcode</div>
 
@@ -161,7 +150,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 
   <div class="tip">
     <h4>💡 Come funziona</h4>
-    <p>• Fotografa il retro del libro con ISBN visibile<br>• L'AI legge il codice dalla foto automaticamente<br>• Se non funziona, digita l'ISBN sotto le barre<br>• L'ISBN inizia sempre con 978 o 979 (13 cifre)</p>
+    <p>• Fotografa il retro del libro con ISBN visibile<br>• Il barcode viene letto automaticamente (Chrome/Android)<br>• Se non viene letto, digita le 13 cifre nel campo ISBN qui sopra<br>• L'ISBN inizia sempre con 978 o 979</p>
   </div>
 </div>
 
@@ -234,15 +223,6 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
       <label class="btn bo" style="flex:1;cursor:pointer">⬆ Importa<input type="file" accept=".json" onchange="importJson(this)" style="display:none"></label>
     </div>
   </div>
-  <div class="card">
-    <div class="ct">🔑 API Key</div>
-    <p style="font-size:13px;color:var(--b4);margin-bottom:10px">Modifica o rimuovi la API key salvata.</p>
-    <input type="password" id="api-key-change" placeholder="sk-ant-api03-..." style="margin-bottom:8px;font-family:monospace;font-size:12px">
-    <div style="display:flex;gap:10px">
-      <button class="btn bg" onclick="saveApiKey('api-key-change')" style="flex:1">💾 Salva</button>
-      <button class="btn br" onclick="localStorage.removeItem('maestra_apikey');toast('API key rimossa');checkSetup()" style="flex:1">🗑 Rimuovi</button>
-    </div>
-  </div>
   <div class="dz"><h3>⚠️ Zona pericolosa</h3>
     <p style="font-size:13px;color:var(--b4);margin-bottom:10px">Elimina tutti gli articoli salvati.</p>
     <button class="btn br" onclick="if(confirm('Eliminare tutto?')){inv=[];save();renderList();toast('Inventario cancellato')}">🗑 Cancella tutto</button>
@@ -257,28 +237,8 @@ let inv=[];
 try{inv=JSON.parse(localStorage.getItem(LS)||'[]')}catch{}
 let flt='Tutti', curBook=null;
 
-// ── API KEY ───────────────────────────────────────────────────────────────────
-function getApiKey(){return localStorage.getItem('maestra_apikey')||''}
-function saveApiKey(inputId='api-key-input'){
-  const key=document.getElementById(inputId).value.trim();
-  if(!key.startsWith('sk-ant')){toast('API key non valida (deve iniziare con sk-ant-)','red');return}
-  localStorage.setItem('maestra_apikey',key);
-  toast('✅ API key salvata!','green');
-  checkSetup();
-}
-function checkSetup(){
-  const hasKey=!!getApiKey();
-  document.getElementById('setup-box').style.display=hasKey?'none':'block';
-}
-
 // ── PHOTO HANDLER ─────────────────────────────────────────────────────────────
 function triggerPhoto(){
-  if(!getApiKey()){
-    document.getElementById('setup-box').style.display='block';
-    document.getElementById('setup-box').scrollIntoView({behavior:'smooth'});
-    toast('Prima configura la API key','red');
-    return;
-  }
   document.getElementById('photo-input').click();
 }
 
@@ -294,9 +254,10 @@ async function onPhoto(input){
 
   const stEl=document.getElementById('scan-st');
 
-  // 1. Try BarcodeDetector (Chrome Android — no API key needed)
+  // 1. Try BarcodeDetector (Chrome Android / Chrome desktop)
   let isbn=null;
   if('BarcodeDetector' in window){
+    setSt(stEl,'load','🔍 Lettura barcode...');
     try{
       const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','code_128']});
       const bmp=await createImageBitmap(file);
@@ -305,78 +266,25 @@ async function onPhoto(input){
     }catch(e){}
   }
 
-  // 2. Claude Vision API (Safari + all browsers)
-  if(!isbn){
-    setSt(stEl,'load','🔍 Lettura ISBN con AI...');
-    const apiKey=getApiKey();
-    if(!apiKey){setSt(stEl,'err','❌ API key mancante. Configura la key in alto.');return}
-
-    // Resize image to reduce payload
-    const resized=await resizeImage(file,1200);
-
-    try{
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          'x-api-key':apiKey,
-          'anthropic-version':'2023-06-01',
-          'anthropic-dangerous-direct-browser-calls':'true'
-        },
-        body:JSON.stringify({
-          model:'claude-haiku-4-5-20251001',
-          max_tokens:60,
-          messages:[{role:'user',content:[
-            {type:'image',source:{type:'base64',media_type:'image/jpeg',data:resized}},
-            {type:'text',text:'Leggi il codice ISBN da questa immagine. Rispondi SOLO con i 13 numeri senza spazi o trattini. Se non vedi un ISBN rispondi NONE.'}
-          ]}]
-        })
-      });
-      const data=await resp.json();
-      if(data.error){
-        setSt(stEl,'err','❌ Errore API: '+( data.error.message||'controlla la API key'));
-        return;
-      }
-      const raw=(data.content?.[0]?.text||'').trim();
-      const match=raw.match(/97[89]\d{10}/);
-      if(match) isbn=match[0];
-      else if(raw!=='NONE' && /^\d{10,13}$/.test(raw)) isbn=raw;
-    }catch(e){
-      setSt(stEl,'err','❌ Errore di rete durante la lettura.');
-      return;
-    }
-  }
-
-  if(!isbn){
-    setSt(stEl,'err','❌ ISBN non trovato nella foto.\nDigita il numero manualmente qui sotto.');
+  // 2. Barcode trovato → cerca subito il libro
+  if(isbn){
+    document.getElementById('isbn-input').value=isbn;
+    setSt(stEl,'load',`📦 ISBN: ${isbn} — cerco libro...`);
+    const book=await fetchBook(isbn);
+    if(!book){setSt(stEl,'err',`❌ ISBN ${isbn} non trovato nel database.\nProva a cercarlo manualmente.`);return}
+    setSt(stEl,'ok','✅ Libro trovato!');
+    showBook(book);
     return;
   }
 
-  document.getElementById('isbn-input').value=isbn;
-  setSt(stEl,'load',`📦 ISBN: ${isbn} — cerco libro...`);
-  const book=await fetchBook(isbn);
-  if(!book){setSt(stEl,'err',`❌ ISBN ${isbn} non trovato nel database.\nProva a cercarlo manualmente.`);return}
-  setSt(stEl,'ok','✅ Libro trovato!');
-  showBook(book);
+  // 3. Barcode non letto → focus automatico sul campo ISBN manuale
+  setSt(stEl,'warn','📝 Barcode non rilevato — digita l\'ISBN qui sotto e premi Cerca.');
+  const isbnInput=document.getElementById('isbn-input');
+  isbnInput.value='';
+  isbnInput.scrollIntoView({behavior:'smooth',block:'center'});
+  setTimeout(()=>isbnInput.focus(),400);
 }
 
-async function resizeImage(file,maxW){
-  return new Promise(resolve=>{
-    const img=new Image();
-    const url=URL.createObjectURL(file);
-    img.onload=()=>{
-      URL.revokeObjectURL(url);
-      const scale=Math.min(1,maxW/img.width);
-      const c=document.createElement('canvas');
-      c.width=Math.round(img.width*scale);
-      c.height=Math.round(img.height*scale);
-      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
-      resolve(c.toDataURL('image/jpeg',0.85).split(',')[1]);
-    };
-    img.onerror=()=>resolve('');
-    img.src=url;
-  });
-}
 
 // ── ISBN MANUAL ───────────────────────────────────────────────────────────────
 async function searchIsbn(){
@@ -542,7 +450,6 @@ function importJson(input){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-checkSetup();
 upd();renderList();
 </script>
 </body>
