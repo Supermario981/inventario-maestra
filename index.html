@@ -390,11 +390,21 @@ async function searchIsbn(){
   showBook(book);
 }
 
-// ── BOOK LOOKUP: Open Library ─────────────────────────────────────────────────
+// ── BOOK LOOKUP: Google Books → Open Library ──────────────────────────────────
 async function fetchBook(isbn){
   isbn=isbn.replace(/[^0-9X]/gi,'');
 
-  // 1. Open Library books API
+  // 1. Google Books API — copertura molto migliore per libri italiani/scolastici
+  try{
+    const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`,{signal:AbortSignal.timeout(8000)});
+    const d=await r.json();
+    const item=d.items?.[0]?.volumeInfo;
+    if(item){
+      return mkBook(isbn,item.title+(item.subtitle?': '+item.subtitle:''),(item.authors||[]).join(', '),item.publisher||'',item.publishedDate?item.publishedDate.slice(0,4):'—',item.pageCount);
+    }
+  }catch(e){}
+
+  // 2. Open Library books API
   try{
     const r=await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`,{signal:AbortSignal.timeout(8000)});
     const d=await r.json();
@@ -405,7 +415,7 @@ async function fetchBook(isbn){
     }
   }catch(e){}
 
-  // 2. Open Library search
+  // 3. Open Library search
   try{
     const r=await fetch(`https://openlibrary.org/search.json?isbn=${isbn}&fields=title,author_name,publisher,first_publish_year,number_of_pages_median&limit=1`,{signal:AbortSignal.timeout(8000)});
     const d=await r.json();
