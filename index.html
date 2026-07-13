@@ -247,6 +247,8 @@ async function onPhoto(input){
   input.value='';
   curBook=null;
   document.getElementById('book-area').style.display='none';
+  document.getElementById('isbn-st').className='st';
+  document.getElementById('isbn-input').value='';
 
   const url=URL.createObjectURL(file);
   const img=document.getElementById('preview-img');
@@ -290,6 +292,8 @@ async function onPhoto(input){
 async function searchIsbn(){
   const isbn=document.getElementById('isbn-input').value.trim().replace(/[^0-9X]/gi,'');
   if(isbn.length<10){toast('Inserisci un ISBN valido','red');return}
+  // Pulisce il messaggio warn del tab Scansiona (se presente)
+  document.getElementById('scan-st').className='st';
   const stEl=document.getElementById('isbn-st');
   setSt(stEl,'load','⏳ Cerco il libro...');
   document.getElementById('book-area').style.display='none'; curBook=null;
