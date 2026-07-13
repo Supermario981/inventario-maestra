@@ -31,6 +31,12 @@ textarea{resize:vertical;min-height:68px}
 .mb12{margin-bottom:12px}.mb14{margin-bottom:14px}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
+/* API KEY SETUP */
+.setup-box{background:#fff8e1;border:2px solid #ffc107;border-radius:14px;padding:16px;margin-bottom:14px}
+.setup-box h3{font-size:14px;font-weight:800;margin-bottom:8px;color:#7a5000}
+.setup-box p{font-size:12px;color:#5a4000;line-height:1.6;margin-bottom:10px}
+.setup-box a{color:var(--g);font-weight:700}
+
 .photo-btn{background:var(--gl);border:3px dashed var(--g);border-radius:16px;padding:28px 16px;text-align:center;cursor:pointer;width:100%;margin-bottom:12px}
 .photo-btn:active{opacity:.8}
 .photo-btn .icon{font-size:48px;margin-bottom:8px}
@@ -39,26 +45,19 @@ textarea{resize:vertical;min-height:68px}
 #preview-img{width:100%;border-radius:10px;margin-bottom:12px;max-height:220px;object-fit:contain;display:none}
 
 .st{border-radius:10px;padding:11px 14px;font-size:13px;font-weight:700;margin-bottom:12px;text-align:center;line-height:1.5;display:none}
-.st.show{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px}
+.st.show{display:flex;align-items:center;justify-content:center}
 .idle{background:#F0F0EB;color:var(--b4)}
 .load{background:var(--yl);color:#8a6200}
 .ok{background:var(--gl);color:var(--g)}
 .err{background:#FDEAEA;color:var(--r)}
 
-/* OCR progress bar */
-.ocr-bar{width:100%;height:6px;background:rgba(0,0,0,.1);border-radius:3px;overflow:hidden;display:none}
-.ocr-bar.show{display:block}
-.ocr-fill{height:100%;background:var(--g);border-radius:3px;transition:width .3s;width:0%}
-
 .bp{background:var(--gl);border:2px solid #9dd4b5;border-radius:12px;padding:14px;margin-bottom:12px}
 .bp h3{font-size:15px;font-weight:800;margin-bottom:6px;line-height:1.3}
 .bp p{font-size:13px;color:var(--g);line-height:1.7}
-
 .qw{display:flex;border:2px solid var(--b3);border-radius:10px;overflow:hidden}
 .qw button{width:42px;height:42px;border:none;background:var(--bg);font-size:20px;font-weight:700;cursor:pointer}
 .qw input{flex:1;border:none;text-align:center;font-weight:700;font-size:15px;font-family:inherit;min-width:0}
 input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
-
 .ic{background:#fff;border-radius:14px;padding:13px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);display:flex;gap:11px}
 .ii{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
 .bk{background:var(--gl)}.mn{background:var(--yl)}
@@ -114,18 +113,26 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 
 <!-- SCAN -->
 <div class="panel active" id="panel-scan">
-  <div class="card">
+
+  <!-- API KEY SETUP (shown if no key saved) -->
+  <div class="setup-box" id="setup-box" style="display:none">
+    <h3>🔑 Configura API Key (una volta sola)</h3>
+    <p>Per leggere il barcode dalla foto serve una API key di Anthropic.<br>
+    Vai su <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a> → crea una key → incollala qui sotto.</p>
+    <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." style="margin-bottom:8px;font-family:monospace;font-size:12px">
+    <button class="btn bg" onclick="saveApiKey()">💾 Salva e continua</button>
+  </div>
+
+  <div class="card" id="scan-card">
     <div class="ct">📷 Fotografa il barcode</div>
 
-    <button class="photo-btn" onclick="document.getElementById('photo-input').click()">
+    <button class="photo-btn" onclick="triggerPhoto()">
       <div class="icon">📷</div>
       <div class="title">Tocca per fotografare</div>
       <div class="sub">Punta sul barcode ISBN del libro</div>
     </button>
     <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(this)">
     <img id="preview-img" alt="anteprima">
-
-    <div class="ocr-bar" id="ocr-bar"><div class="ocr-fill" id="ocr-fill"></div></div>
 
     <div class="st" id="scan-st"></div>
 
@@ -154,7 +161,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 
   <div class="tip">
     <h4>💡 Come funziona</h4>
-    <p>• Fotografa il retro del libro con il barcode visibile<br>• L'app legge il numero ISBN dalla foto con OCR<br>• Se non funziona, digita il numero ISBN manualmente<br>• L'ISBN è sotto le barre (13 cifre: es. 9788858029039)</p>
+    <p>• Fotografa il retro del libro con ISBN visibile<br>• L'AI legge il codice dalla foto automaticamente<br>• Se non funziona, digita l'ISBN sotto le barre<br>• L'ISBN inizia sempre con 978 o 979 (13 cifre)</p>
   </div>
 </div>
 
@@ -227,6 +234,15 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
       <label class="btn bo" style="flex:1;cursor:pointer">⬆ Importa<input type="file" accept=".json" onchange="importJson(this)" style="display:none"></label>
     </div>
   </div>
+  <div class="card">
+    <div class="ct">🔑 API Key</div>
+    <p style="font-size:13px;color:var(--b4);margin-bottom:10px">Modifica o rimuovi la API key salvata.</p>
+    <input type="password" id="api-key-change" placeholder="sk-ant-api03-..." style="margin-bottom:8px;font-family:monospace;font-size:12px">
+    <div style="display:flex;gap:10px">
+      <button class="btn bg" onclick="saveApiKey('api-key-change')" style="flex:1">💾 Salva</button>
+      <button class="btn br" onclick="localStorage.removeItem('maestra_apikey');toast('API key rimossa');checkSetup()" style="flex:1">🗑 Rimuovi</button>
+    </div>
+  </div>
   <div class="dz"><h3>⚠️ Zona pericolosa</h3>
     <p style="font-size:13px;color:var(--b4);margin-bottom:10px">Elimina tutti gli articoli salvati.</p>
     <button class="btn br" onclick="if(confirm('Eliminare tutto?')){inv=[];save();renderList();toast('Inventario cancellato')}">🗑 Cancella tutto</button>
@@ -235,254 +251,185 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 
 <div id="toast"></div>
 
-<!-- Tesseract.js via CDN — caricato in lazy al primo uso -->
 <script>
-const LS='maestra_v7';
+const LS='maestra_v8';
 let inv=[];
 try{inv=JSON.parse(localStorage.getItem(LS)||'[]')}catch{}
 let flt='Tutti', curBook=null;
-let tesseractReady=false, tesseractWorker=null;
 
-// ── INIT TESSERACT (lazy) ──────────────────────────────────────────────────────
-async function ensureTesseract() {
-  if(tesseractWorker) return true;
-  setSt(document.getElementById('scan-st'),'load','⏳ Carico motore OCR (prima volta ~5s)...');
-  setOcrBar(10);
-  return new Promise(resolve => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-    s.onload = async () => {
-      try {
-        setOcrBar(30);
-        tesseractWorker = await Tesseract.createWorker('eng', 1, {
-          workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-          langPath: 'https://tessdata.projectnaptha.com/4.0.0',
-          corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core-simd-lstm.wasm.js',
-          logger: m => {
-            if(m.status === 'recognizing text') setOcrBar(30 + Math.round(m.progress * 60));
-          }
-        });
-        setOcrBar(90);
-        tesseractReady = true;
-        resolve(true);
-      } catch(e) { resolve(false); }
-    };
-    s.onerror = () => resolve(false);
-    document.head.appendChild(s);
-  });
+// ── API KEY ───────────────────────────────────────────────────────────────────
+function getApiKey(){return localStorage.getItem('maestra_apikey')||''}
+function saveApiKey(inputId='api-key-input'){
+  const key=document.getElementById(inputId).value.trim();
+  if(!key.startsWith('sk-ant')){toast('API key non valida (deve iniziare con sk-ant-)','red');return}
+  localStorage.setItem('maestra_apikey',key);
+  toast('✅ API key salvata!','green');
+  checkSetup();
 }
-
-function setOcrBar(pct) {
-  document.getElementById('ocr-bar').className = 'ocr-bar show';
-  document.getElementById('ocr-fill').style.width = pct + '%';
-}
-function hideOcrBar() {
-  document.getElementById('ocr-bar').className = 'ocr-bar';
-  document.getElementById('ocr-fill').style.width = '0%';
+function checkSetup(){
+  const hasKey=!!getApiKey();
+  document.getElementById('setup-box').style.display=hasKey?'none':'block';
 }
 
 // ── PHOTO HANDLER ─────────────────────────────────────────────────────────────
-async function onPhoto(input) {
-  const file = input.files[0]; if(!file) return;
-  input.value = '';
-  curBook = null;
-  document.getElementById('book-area').style.display = 'none';
+function triggerPhoto(){
+  if(!getApiKey()){
+    document.getElementById('setup-box').style.display='block';
+    document.getElementById('setup-box').scrollIntoView({behavior:'smooth'});
+    toast('Prima configura la API key','red');
+    return;
+  }
+  document.getElementById('photo-input').click();
+}
 
-  const url = URL.createObjectURL(file);
-  const img = document.getElementById('preview-img');
-  img.src = url; img.style.display = 'block';
+async function onPhoto(input){
+  const file=input.files[0]; if(!file) return;
+  input.value='';
+  curBook=null;
+  document.getElementById('book-area').style.display='none';
 
-  const stEl = document.getElementById('scan-st');
-  setSt(stEl,'load','⏳ Avvio lettura barcode...');
+  const url=URL.createObjectURL(file);
+  const img=document.getElementById('preview-img');
+  img.src=url; img.style.display='block';
 
-  let isbn = null;
+  const stEl=document.getElementById('scan-st');
 
-  // 1. Try BarcodeDetector (Chrome Android)
-  if('BarcodeDetector' in window) {
-    try {
-      const det = new BarcodeDetector({formats:['ean_13','ean_8','upc_a','code_128']});
-      const bmp = await createImageBitmap(file);
-      const results = await det.detect(bmp);
-      if(results.length) {
-        isbn = results[0].rawValue.replace(/[^0-9]/g,'');
-        setSt(stEl,'load',`📦 Barcode: ${isbn} — cerco...`);
+  // 1. Try BarcodeDetector (Chrome Android — no API key needed)
+  let isbn=null;
+  if('BarcodeDetector' in window){
+    try{
+      const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','code_128']});
+      const bmp=await createImageBitmap(file);
+      const results=await det.detect(bmp);
+      if(results.length) isbn=results[0].rawValue.replace(/[^0-9]/g,'');
+    }catch(e){}
+  }
+
+  // 2. Claude Vision API (Safari + all browsers)
+  if(!isbn){
+    setSt(stEl,'load','🔍 Lettura ISBN con AI...');
+    const apiKey=getApiKey();
+    if(!apiKey){setSt(stEl,'err','❌ API key mancante. Configura la key in alto.');return}
+
+    // Resize image to reduce payload
+    const resized=await resizeImage(file,1200);
+
+    try{
+      const resp=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'x-api-key':apiKey,
+          'anthropic-version':'2023-06-01',
+          'anthropic-dangerous-direct-browser-calls':'true'
+        },
+        body:JSON.stringify({
+          model:'claude-haiku-4-5-20251001',
+          max_tokens:60,
+          messages:[{role:'user',content:[
+            {type:'image',source:{type:'base64',media_type:'image/jpeg',data:resized}},
+            {type:'text',text:'Leggi il codice ISBN da questa immagine. Rispondi SOLO con i 13 numeri senza spazi o trattini. Se non vedi un ISBN rispondi NONE.'}
+          ]}]
+        })
+      });
+      const data=await resp.json();
+      if(data.error){
+        setSt(stEl,'err','❌ Errore API: '+( data.error.message||'controlla la API key'));
+        return;
       }
-    } catch(e){}
-  }
-
-  // 2. OCR with Tesseract (Safari + tutti gli altri)
-  if(!isbn) {
-    setSt(stEl,'load','🔍 Lettura testo con OCR...');
-    const ok = await ensureTesseract();
-    if(ok) {
-      try {
-        setOcrBar(30);
-        // Crop bottom third of image where ISBN usually is
-        const croppedBlob = await cropBottom(file, 0.45);
-        setOcrBar(50);
-        const result = await tesseractWorker.recognize(croppedBlob);
-        setOcrBar(95);
-        const text = result.data.text;
-        isbn = extractIsbnFromText(text);
-        if(isbn) setSt(stEl,'load',`📦 ISBN trovato: ${isbn} — cerco libro...`);
-      } catch(e) {}
+      const raw=(data.content?.[0]?.text||'').trim();
+      const match=raw.match(/97[89]\d{10}/);
+      if(match) isbn=match[0];
+      else if(raw!=='NONE' && /^\d{10,13}$/.test(raw)) isbn=raw;
+    }catch(e){
+      setSt(stEl,'err','❌ Errore di rete durante la lettura.');
+      return;
     }
-    hideOcrBar();
   }
 
-  if(!isbn) {
-    setSt(stEl,'err','❌ Non riesco a leggere l\'ISBN dalla foto.\nDigita il numero manualmente nel campo qui sotto.');
-    hideOcrBar();
+  if(!isbn){
+    setSt(stEl,'err','❌ ISBN non trovato nella foto.\nDigita il numero manualmente qui sotto.');
     return;
   }
 
-  // Auto-fill manual field too
-  document.getElementById('isbn-input').value = isbn;
-
-  const book = await fetchBook(isbn);
-  if(!book) {
-    setSt(stEl,'err',`❌ ISBN ${isbn} non trovato.\nPressa "Cerca" nel campo manuale o riprova.`);
-    hideOcrBar();
-    return;
-  }
+  document.getElementById('isbn-input').value=isbn;
+  setSt(stEl,'load',`📦 ISBN: ${isbn} — cerco libro...`);
+  const book=await fetchBook(isbn);
+  if(!book){setSt(stEl,'err',`❌ ISBN ${isbn} non trovato nel database.\nProva a cercarlo manualmente.`);return}
   setSt(stEl,'ok','✅ Libro trovato!');
   showBook(book);
 }
 
-// Crop bottom portion of image (where ISBN barcode usually is)
-async function cropBottom(file, fraction) {
-  return new Promise(resolve => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
+async function resizeImage(file,maxW){
+  return new Promise(resolve=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
       URL.revokeObjectURL(url);
-      const canvas = document.createElement('canvas');
-      const cropHeight = Math.round(img.height * fraction);
-      const cropY = img.height - cropHeight;
-      // Scale up for better OCR accuracy
-      const scale = Math.min(3, 1200 / img.width);
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(cropHeight * scale);
-      const ctx = canvas.getContext('2d');
-      // White background
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, cropY, img.width, cropHeight, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(resolve, 'image/png');
+      const scale=Math.min(1,maxW/img.width);
+      const c=document.createElement('canvas');
+      c.width=Math.round(img.width*scale);
+      c.height=Math.round(img.height*scale);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      resolve(c.toDataURL('image/jpeg',0.85).split(',')[1]);
     };
-    img.onerror = () => resolve(file);
-    img.src = url;
+    img.onerror=()=>resolve('');
+    img.src=url;
   });
 }
 
-// Extract ISBN-13 or ISBN-10 from OCR text
-function extractIsbnFromText(text) {
-  if(!text) return null;
-  // Normalize: remove spaces, dashes within number sequences
-  const clean = text.replace(/\r/g,' ');
-
-  // Pattern 1: explicit ISBN label followed by number
-  const labeled = clean.match(/ISBN[\s\-:]*([0-9][\s\-0-9]{10,16}[0-9X])/i);
-  if(labeled) {
-    const n = labeled[1].replace(/[\s\-]/g,'');
-    if(n.length === 13 || n.length === 10) return n;
-    if(n.length > 13) return n.substring(0,13);
-  }
-
-  // Pattern 2: standalone 13-digit number starting with 978 or 979
-  const ean13 = clean.match(/\b(97[89][0-9\s\-]{9,14}[0-9])\b/g);
-  if(ean13) {
-    for(const m of ean13) {
-      const n = m.replace(/[\s\-]/g,'');
-      if(n.length === 13) return n;
-    }
-  }
-
-  // Pattern 3: any 13-digit sequence
-  const any13 = clean.match(/\b([0-9]{13})\b/g);
-  if(any13) {
-    for(const m of any13) {
-      if(m.startsWith('978') || m.startsWith('979')) return m;
-    }
-    if(any13.length) return any13[0];
-  }
-
-  return null;
+// ── ISBN MANUAL ───────────────────────────────────────────────────────────────
+async function searchIsbn(){
+  const isbn=document.getElementById('isbn-input').value.trim().replace(/[^0-9X]/gi,'');
+  if(isbn.length<10){toast('Inserisci un ISBN valido','red');return}
+  const stEl=document.getElementById('isbn-st');
+  setSt(stEl,'load','⏳ Cerco il libro...');
+  document.getElementById('book-area').style.display='none'; curBook=null;
+  const book=await fetchBook(isbn);
+  if(!book){setSt(stEl,'err',`❌ Libro non trovato per ISBN ${isbn}.\nUsa il tab ✏️ per aggiungerlo manualmente.`);return}
+  setSt(stEl,'ok','✅ Trovato!');
+  showBook(book);
 }
 
-// ── BOOK LOOKUP ───────────────────────────────────────────────────────────────
-async function fetchBook(isbn) {
-  isbn = isbn.replace(/[^0-9X]/gi,'');
+// ── BOOK LOOKUP: Open Library ─────────────────────────────────────────────────
+async function fetchBook(isbn){
+  isbn=isbn.replace(/[^0-9X]/gi,'');
 
-  // 1. Open Library (best for Italian)
-  try {
-    const r = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`,{signal:AbortSignal.timeout(8000)});
-    const d = await r.json();
-    const key = `ISBN:${isbn}`;
-    if(d[key]) {
-      const b = d[key];
-      return mkBook(isbn,
-        b.title,
-        (b.authors||[]).map(a=>a.name).join(', '),
-        (b.publishers||[]).map(p=>p.name).join(', '),
-        b.publish_date ? b.publish_date.replace(/.*(\d{4}).*/,'$1') : '—',
-        b.number_of_pages
-      );
+  // 1. Open Library books API
+  try{
+    const r=await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`,{signal:AbortSignal.timeout(8000)});
+    const d=await r.json();
+    const key=`ISBN:${isbn}`;
+    if(d[key]){
+      const b=d[key];
+      return mkBook(isbn,b.title,(b.authors||[]).map(a=>a.name).join(', '),(b.publishers||[]).map(p=>p.name).join(', '),b.publish_date?b.publish_date.replace(/.*(\d{4}).*/,'$1'):'—',b.number_of_pages);
     }
-  } catch(e){}
+  }catch(e){}
 
-  // 2. Open Library search endpoint
-  try {
-    const r = await fetch(`https://openlibrary.org/search.json?isbn=${isbn}&fields=title,author_name,publisher,first_publish_year,number_of_pages_median&limit=1`,{signal:AbortSignal.timeout(8000)});
-    const d = await r.json();
-    if(d.docs?.length) {
-      const b = d.docs[0];
-      return mkBook(isbn,
-        b.title,
-        (b.author_name||[]).join(', '),
-        (b.publisher||[''])[0],
-        b.first_publish_year ? String(b.first_publish_year) : '—',
-        b.number_of_pages_median
-      );
+  // 2. Open Library search
+  try{
+    const r=await fetch(`https://openlibrary.org/search.json?isbn=${isbn}&fields=title,author_name,publisher,first_publish_year,number_of_pages_median&limit=1`,{signal:AbortSignal.timeout(8000)});
+    const d=await r.json();
+    if(d.docs?.length){
+      const b=d.docs[0];
+      return mkBook(isbn,b.title,(b.author_name||[]).join(', '),(b.publisher||[''])[0],b.first_publish_year?String(b.first_publish_year):'—',b.number_of_pages_median);
     }
-  } catch(e){}
+  }catch(e){}
 
   return null;
 }
 
 function mkBook(isbn,title,author,publisher,year,pages){
-  return {type:'book',id:Date.now(),
-    name:title||'Titolo sconosciuto',
-    author:author||'—', publisher:publisher||'—',
-    year:year||'—', pages:pages||'—', isbn,
-    category:'Libri di testo',
-    addedAt:new Date().toLocaleDateString('it-IT')
-  };
+  return{type:'book',id:Date.now(),name:title||'Titolo sconosciuto',author:author||'—',publisher:publisher||'—',year:year||'—',pages:pages||'—',isbn,category:'Libri di testo',addedAt:new Date().toLocaleDateString('it-IT')};
 }
 
 function showBook(book){
   curBook=book;
   document.getElementById('bp-title').textContent=book.name;
-  document.getElementById('bp-meta').innerHTML=
-    (book.author!=='—'?`✍️ ${book.author}<br>`:'')+
-    (book.publisher!=='—'?`🏢 ${book.publisher}${book.year!=='—'?' · '+book.year:''}<br>`:'')+
-    `📖 ${book.pages} pag. · ISBN: ${book.isbn}`;
+  document.getElementById('bp-meta').innerHTML=(book.author!=='—'?`✍️ ${book.author}<br>`:'')+( book.publisher!=='—'?`🏢 ${book.publisher}${book.year!=='—'?' · '+book.year:''}<br>`:'')+`📖 ${book.pages} pag. · ISBN: ${book.isbn}`;
   document.getElementById('book-area').style.display='block';
-  document.getElementById('sq').value=1;
-  document.getElementById('snote').value='';
+  document.getElementById('sq').value=1; document.getElementById('snote').value='';
   document.getElementById('book-area').scrollIntoView({behavior:'smooth',block:'nearest'});
-}
-
-async function searchIsbn(){
-  const isbn = document.getElementById('isbn-input').value.trim().replace(/[^0-9X]/gi,'');
-  if(isbn.length<10){toast('Inserisci un ISBN valido','red');return}
-  const stEl = document.getElementById('isbn-st');
-  setSt(stEl,'load','⏳ Cerco il libro...');
-  document.getElementById('book-area').style.display='none'; curBook=null;
-  const book = await fetchBook(isbn);
-  if(!book){setSt(stEl,'err',`❌ Libro non trovato per ISBN ${isbn}.\nUsa il tab ✏️ per aggiungerlo manualmente.`);return}
-  setSt(stEl,'ok','✅ Trovato!');
-  showBook(book);
 }
 
 function setSt(el,type,msg){el.className='st show '+type;el.textContent=msg}
@@ -501,20 +448,16 @@ function resetScan(){
   document.getElementById('scan-st').className='st';
   document.getElementById('isbn-st').className='st';
   document.getElementById('isbn-input').value='';
-  hideOcrBar();
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
-const LS_KEY=LS;
-function save(){localStorage.setItem(LS_KEY,JSON.stringify(inv));upd()}
+function save(){localStorage.setItem(LS,JSON.stringify(inv));upd()}
 function upd(){
   const n=inv.length,bk=inv.filter(i=>i.type==='book'),mn=inv.filter(i=>i.type==='manual'),q=inv.reduce((s,i)=>s+(parseInt(i.quantity)||1),0);
   document.getElementById('hcount').textContent=n+' art.';
   document.getElementById('list-count').textContent=n;
-  document.getElementById('s-tot').textContent=n;
-  document.getElementById('s-qty').textContent=q;
-  document.getElementById('s-bk').textContent=bk.length;
-  document.getElementById('s-mn').textContent=mn.length;
+  document.getElementById('s-tot').textContent=n;document.getElementById('s-qty').textContent=q;
+  document.getElementById('s-bk').textContent=bk.length;document.getElementById('s-mn').textContent=mn.length;
 }
 function toast(msg,type=''){
   const el=document.getElementById('toast');el.textContent=msg;el.className=type;el.classList.add('show');
@@ -598,6 +541,8 @@ function importJson(input){
   r.readAsText(f);input.value='';
 }
 
+// ── INIT ──────────────────────────────────────────────────────────────────────
+checkSetup();
 upd();renderList();
 </script>
 </body>
