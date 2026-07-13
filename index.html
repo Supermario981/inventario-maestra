@@ -2,833 +2,312 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Inventario Maestra</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Nunito+Sans:wght@400;600&display=swap');
+:root {
+  --green: #2D6A4F; --green-light: #E8F5EE; --yellow: #F5C842;
+  --yellow-light: #FFFBEA; --red: #E05C5C; --gray: #F4F4EF;
+  --gray2: #EAEAE4; --gray3: #DDD; --gray4: #888; --dark: #222;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, 'Segoe UI', sans-serif; background: var(--gray); min-height: 100vh; max-width: 480px; margin: 0 auto; }
+header { background: var(--green); color: #fff; padding: 13px 16px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+header h1 { flex: 1; font-size: 15px; font-weight: 800; line-height: 1.15; }
+header h1 span { display: block; font-size: 11px; font-weight: 500; opacity: .75; margin-top: 1px; }
+.count-badge { background: rgba(255,255,255,.2); border-radius: 20px; padding: 3px 11px; font-weight: 700; font-size: 13px; }
+.tabs { display: flex; background: #fff; border-bottom: 2px solid var(--gray2); position: sticky; top: 54px; z-index: 99; }
+.tab { flex: 1; padding: 10px 4px 9px; border: none; background: none; font-weight: 700; font-size: 11px; cursor: pointer; color: var(--gray4); border-bottom: 3px solid transparent; margin-bottom: -2px; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: color .15s; }
+.tab .ti { font-size: 18px; }
+.tab.active { color: var(--green); border-bottom-color: var(--green); }
+.panel { display: none; padding: 14px; }
+.panel.active { display: block; }
+.card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+.card-title { font-weight: 800; font-size: 15px; margin-bottom: 14px; }
+label { display: block; font-weight: 700; font-size: 13px; margin-bottom: 5px; }
+input, select, textarea { width: 100%; padding: 10px 12px; border: 2px solid var(--gray3); border-radius: 10px; font-size: 14px; font-family: inherit; color: var(--dark); background: #fff; -webkit-appearance: none; box-sizing: border-box; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--green); }
+textarea { resize: vertical; min-height: 68px; }
+.btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 11px 16px; border-radius: 10px; font-weight: 700; font-size: 14px; font-family: inherit; cursor: pointer; width: 100%; border: none; transition: opacity .15s; }
+.btn:active { opacity: .8; }
+.btn-green { background: var(--green); color: #fff; }
+.btn-green:disabled { background: var(--gray3); color: var(--gray4); cursor: not-allowed; }
+.btn-outline { background: transparent; color: var(--green); border: 2px solid var(--green); }
+.btn-red { background: var(--red); color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: 12px; width: auto; border-radius: 8px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mb12 { margin-bottom: 12px; }
+.mb14 { margin-bottom: 14px; }
 
-  :root {
-    --green:   #2D7A4F;
-    --green-light: #E8F5EE;
-    --yellow:  #F5C842;
-    --yellow-light: #FFFBEA;
-    --red:     #E05C5C;
-    --gray-50: #F9F9F8;
-    --gray-100:#F0EFEB;
-    --gray-200:#DDD;
-    --gray-500:#888;
-    --gray-800:#2A2A2A;
-    --white:   #FFFFFF;
-    --radius:  14px;
-    --shadow:  0 2px 12px rgba(0,0,0,0.08);
-  }
+/* VIDEO */
+#viewfinder { position: relative; border-radius: 14px; overflow: hidden; background: #111; aspect-ratio: 4/3; margin-bottom: 12px; }
+#video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vf-off { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #555; gap: 10px; }
+.vf-off span { font-size: 52px; }
+.vf-off p { font-weight: 700; font-size: 14px; }
+.scan-guide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.scan-box { width: 220px; height: 120px; position: relative; box-shadow: 0 0 0 9999px rgba(0,0,0,.45); border-radius: 8px; }
+.scan-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--yellow); border-radius: 2px; animation: scanline 1.8s ease-in-out infinite; }
+@keyframes scanline { 0%,100%{top:8%} 50%{top:88%} }
+.corner { position: absolute; width: 20px; height: 20px; border-color: var(--yellow); border-style: solid; }
+.corner.tl { top:0; left:0; border-width: 3px 0 0 3px; }
+.corner.tr { top:0; right:0; border-width: 3px 3px 0 0; }
+.corner.bl { bottom:0; left:0; border-width: 0 0 3px 3px; }
+.corner.br { bottom:0; right:0; border-width: 0 3px 3px 0; }
+.engine-badge { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,.55); color: #fff; font-size: 10px; padding: 3px 8px; border-radius: 20px; font-weight: 600; }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+/* STATUS */
+.status { border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 700; margin-bottom: 12px; text-align: center; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+.status.idle { background: #F0F0EB; color: var(--gray4); }
+.status.loading { background: var(--yellow-light); color: #8a6200; }
+.status.ok { background: var(--green-light); color: var(--green); }
+.status.err { background: #FDEAEA; color: var(--red); }
 
-  body {
-    font-family: 'Nunito Sans', sans-serif;
-    background: var(--gray-50);
-    color: var(--gray-800);
-    min-height: 100vh;
-  }
+/* BOOK PREVIEW */
+.book-preview { background: var(--green-light); border: 2px solid #9dd4b5; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+.book-preview h3 { font-size: 15px; font-weight: 800; margin-bottom: 6px; line-height: 1.3; }
+.book-preview p { font-size: 13px; color: var(--green); line-height: 1.7; }
 
-  /* HEADER */
-  header {
-    background: var(--green);
-    color: white;
-    padding: 18px 20px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  }
-  header .logo { font-size: 26px; }
-  header h1 {
-    font-family: 'Nunito', sans-serif;
-    font-size: 18px;
-    font-weight: 800;
-    line-height: 1.1;
-  }
-  header h1 span {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    opacity: 0.75;
-    margin-top: 1px;
-  }
-  .header-count {
-    margin-left: auto;
-    background: rgba(255,255,255,0.2);
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 14px;
-  }
+/* QTY */
+.qty-wrap { display: flex; border: 2px solid var(--gray3); border-radius: 10px; overflow: hidden; }
+.qty-wrap button { width: 42px; height: 42px; border: none; background: var(--gray); font-size: 20px; font-weight: 700; cursor: pointer; }
+.qty-wrap input { flex: 1; border: none; text-align: center; font-weight: 700; font-size: 15px; font-family: inherit; min-width: 0; }
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
-  /* TABS */
-  .tabs {
-    display: flex;
-    background: white;
-    border-bottom: 2px solid var(--gray-100);
-    position: sticky;
-    top: 62px;
-    z-index: 99;
-  }
-  .tab-btn {
-    flex: 1;
-    padding: 14px 8px;
-    border: none;
-    background: none;
-    font-family: 'Nunito', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--gray-500);
-    cursor: pointer;
-    transition: all 0.2s;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -2px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-  }
-  .tab-btn .tab-icon { font-size: 20px; }
-  .tab-btn.active {
-    color: var(--green);
-    border-bottom-color: var(--green);
-  }
+/* ITEM LIST */
+.item-card { background: #fff; border-radius: 14px; padding: 13px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.07); display: flex; gap: 11px; }
+.item-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+.item-icon.book { background: var(--green-light); }
+.item-icon.manual { background: var(--yellow-light); }
+.item-body { flex: 1; min-width: 0; }
+.item-name { font-weight: 800; font-size: 14px; margin-bottom: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-meta { font-size: 12px; color: var(--gray4); line-height: 1.6; }
+.badge { display: inline-block; border-radius: 6px; padding: 2px 8px; font-weight: 700; font-size: 11px; }
+.badge-qty { background: #F0F0EB; color: #444; }
+.badge-cat { background: var(--yellow-light); border: 1px solid #e8d87a; color: #7a6200; margin-left: 4px; }
+.badge-cat.book { background: var(--green-light); border-color: #9dd4b5; color: var(--green); }
+.item-actions { display: flex; gap: 6px; margin-top: 8px; }
+.btn-edit { padding: 5px 11px; border: 2px solid var(--green); background: transparent; color: var(--green); border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; }
+.btn-del { padding: 5px 11px; border: none; background: #FDEAEA; color: var(--red); border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; }
 
-  /* PANELS */
-  .panel { display: none; padding: 16px; }
-  .panel.active { display: block; }
+/* FILTER CHIPS */
+.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex-shrink: 0; padding: 5px 13px; border-radius: 20px; border: 2px solid var(--gray3); background: #fff; color: var(--gray4); font-weight: 700; font-size: 11px; cursor: pointer; }
+.chip.active { background: var(--green); border-color: var(--green); color: #fff; }
 
-  /* CARDS */
-  .card {
-    background: white;
-    border-radius: var(--radius);
-    padding: 18px;
-    margin-bottom: 14px;
-    box-shadow: var(--shadow);
-  }
-  .card-title {
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 15px;
-    margin-bottom: 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+/* SEARCH */
+.search-wrap { position: relative; margin-bottom: 12px; }
+.search-wrap .icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); }
+.search-wrap input { padding-left: 36px; }
 
-  /* CAMERA */
-  #video-container {
-    position: relative;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #000;
-    aspect-ratio: 4/3;
-    margin-bottom: 12px;
-  }
-  #video {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .scan-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: none;
-  }
-  .scan-frame {
-    width: 200px;
-    height: 120px;
-    border: 2px solid var(--yellow);
-    border-radius: 8px;
-    position: relative;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.4);
-  }
-  .scan-frame::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--yellow);
-    opacity: 0.7;
-    animation: scanline 1.8s ease-in-out infinite;
-  }
-  @keyframes scanline {
-    0%, 100% { top: 15%; }
-    50% { top: 85%; }
-  }
-  #canvas { display: none; }
+/* STATS */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 0; }
+.stat-box { background: var(--gray); border-radius: 12px; padding: 14px; text-align: center; }
+.stat-num { font-weight: 800; font-size: 28px; color: var(--green); line-height: 1; }
+.stat-label { font-size: 12px; color: var(--gray4); margin-top: 4px; }
 
-  /* BUTTONS */
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    padding: 12px 20px;
-    border-radius: 10px;
-    border: none;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.18s;
-    text-decoration: none;
-    width: 100%;
-  }
-  .btn-green { background: var(--green); color: white; }
-  .btn-green:hover { background: #235f3d; }
-  .btn-green:disabled { background: var(--gray-200); color: var(--gray-500); cursor: not-allowed; }
-  .btn-yellow { background: var(--yellow); color: var(--gray-800); }
-  .btn-yellow:hover { background: #e0b530; }
-  .btn-red { background: var(--red); color: white; }
-  .btn-outline {
-    background: transparent;
-    color: var(--green);
-    border: 2px solid var(--green);
-  }
-  .btn-sm {
-    padding: 7px 12px;
-    font-size: 12px;
-    width: auto;
-    border-radius: 8px;
-  }
+/* DANGER */
+.danger { border: 2px solid #fbd0d0; border-radius: 14px; padding: 14px; }
+.danger h3 { color: var(--red); font-size: 14px; margin-bottom: 8px; }
 
-  /* SCAN STATUS */
-  #scan-status {
-    text-align: center;
-    padding: 10px;
-    border-radius: 10px;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 12px;
-    min-height: 42px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-  #scan-status.idle    { background: var(--gray-100); color: var(--gray-500); }
-  #scan-status.loading { background: var(--yellow-light); color: #8a6e00; }
-  #scan-status.success { background: var(--green-light); color: var(--green); }
-  #scan-status.error   { background: #fdeaea; color: var(--red); }
+/* EMPTY */
+.empty { text-align: center; padding: 40px 20px; color: #bbb; }
+.empty .ei { font-size: 44px; margin-bottom: 10px; }
+.empty p { font-weight: 700; font-size: 15px; color: #888; }
+.empty small { font-size: 13px; margin-top: 4px; display: block; }
 
-  /* BOOK PREVIEW */
-  #book-preview {
-    display: none;
-    border: 2px solid var(--green-light);
-    border-radius: 12px;
-    padding: 14px;
-    margin-bottom: 12px;
-    background: var(--green-light);
-  }
-  #book-preview .book-title {
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 15px;
-    margin-bottom: 4px;
-  }
-  #book-preview .book-meta {
-    font-size: 13px;
-    color: #3a6b50;
-    line-height: 1.6;
-  }
+/* TOAST */
+#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--dark); color: #fff; padding: 10px 22px; border-radius: 30px; font-weight: 700; font-size: 14px; z-index: 999; transition: transform .28s cubic-bezier(.34,1.56,.64,1); pointer-events: none; white-space: nowrap; }
+#toast.show { transform: translateX(-50%) translateY(0); }
+#toast.green { background: var(--green); }
+#toast.red { background: var(--red); }
 
-  /* FORM */
-  .form-group { margin-bottom: 13px; }
-  label {
-    display: block;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 13px;
-    margin-bottom: 5px;
-    color: var(--gray-800);
-  }
-  input, select, textarea {
-    width: 100%;
-    padding: 11px 13px;
-    border: 2px solid var(--gray-200);
-    border-radius: 10px;
-    font-family: 'Nunito Sans', sans-serif;
-    font-size: 14px;
-    color: var(--gray-800);
-    background: white;
-    transition: border-color 0.2s;
-    -webkit-appearance: none;
-  }
-  input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: var(--green);
-  }
-  textarea { resize: vertical; min-height: 70px; }
+/* TIP BOX */
+.tip { background: var(--yellow-light); border: 2px solid #e8d87a; border-radius: 14px; padding: 14px; }
+.tip h4 { color: #7a6200; font-size: 13px; margin-bottom: 6px; }
+.tip p { color: #5a4a00; font-size: 13px; line-height: 1.65; }
 
-  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-  /* QUANTITY STEPPER */
-  .qty-stepper {
-    display: flex;
-    align-items: center;
-    border: 2px solid var(--gray-200);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  .qty-stepper button {
-    width: 44px;
-    height: 44px;
-    border: none;
-    background: var(--gray-100);
-    font-size: 20px;
-    font-weight: 700;
-    cursor: pointer;
-    color: var(--gray-800);
-    flex-shrink: 0;
-    transition: background 0.15s;
-  }
-  .qty-stepper button:hover { background: var(--gray-200); }
-  .qty-stepper input {
-    border: none;
-    border-radius: 0;
-    text-align: center;
-    font-weight: 700;
-    font-family: 'Nunito', sans-serif;
-    flex: 1;
-    min-width: 0;
-  }
-  .qty-stepper input:focus { border-color: transparent; }
-
-  /* INVENTORY LIST */
-  .inv-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 14px;
-  }
-  .inv-header h2 {
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 16px;
-  }
-  .item-count-badge {
-    background: var(--green);
-    color: white;
-    border-radius: 20px;
-    padding: 3px 10px;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 12px;
-  }
-
-  .filter-bar {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 14px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    -webkit-overflow-scrolling: touch;
-  }
-  .filter-bar::-webkit-scrollbar { display: none; }
-  .filter-chip {
-    flex-shrink: 0;
-    padding: 6px 14px;
-    border-radius: 20px;
-    border: 2px solid var(--gray-200);
-    background: white;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 12px;
-    cursor: pointer;
-    color: var(--gray-500);
-    transition: all 0.15s;
-  }
-  .filter-chip.active {
-    background: var(--green);
-    border-color: var(--green);
-    color: white;
-  }
-
-  .search-bar {
-    position: relative;
-    margin-bottom: 14px;
-  }
-  .search-bar input {
-    padding-left: 38px;
-  }
-  .search-bar .search-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 16px;
-    color: var(--gray-500);
-  }
-
-  .item-card {
-    background: white;
-    border-radius: var(--radius);
-    padding: 14px;
-    margin-bottom: 10px;
-    box-shadow: var(--shadow);
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-  }
-  .item-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 22px;
-    flex-shrink: 0;
-  }
-  .item-icon.book { background: var(--green-light); }
-  .item-icon.item { background: var(--yellow-light); }
-  .item-body { flex: 1; min-width: 0; }
-  .item-name {
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 14px;
-    margin-bottom: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .item-meta {
-    font-size: 12px;
-    color: var(--gray-500);
-    line-height: 1.5;
-  }
-  .item-meta strong { color: var(--green); font-weight: 700; }
-  .item-actions {
-    display: flex;
-    gap: 6px;
-    margin-top: 8px;
-  }
-  .qty-badge {
-    display: inline-block;
-    background: var(--gray-100);
-    border-radius: 6px;
-    padding: 2px 8px;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 12px;
-    color: var(--gray-800);
-  }
-  .cat-badge {
-    display: inline-block;
-    background: var(--yellow-light);
-    border: 1px solid #e8d87a;
-    border-radius: 6px;
-    padding: 2px 8px;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 11px;
-    color: #7a6200;
-    margin-left: 4px;
-  }
-  .cat-badge.libro {
-    background: var(--green-light);
-    border-color: #9dd4b5;
-    color: var(--green);
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--gray-500);
-  }
-  .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
-  .empty-state p {
-    font-family: 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 15px;
-  }
-  .empty-state span {
-    display: block;
-    font-size: 13px;
-    font-weight: 400;
-    margin-top: 4px;
-    font-family: 'Nunito Sans', sans-serif;
-  }
-
-  /* EXPORT PANEL */
-  .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-  .stat-box {
-    background: var(--gray-100);
-    border-radius: 12px;
-    padding: 14px;
-    text-align: center;
-  }
-  .stat-box .stat-num {
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 28px;
-    color: var(--green);
-    line-height: 1;
-  }
-  .stat-box .stat-label {
-    font-size: 12px;
-    color: var(--gray-500);
-    margin-top: 4px;
-  }
-
-  /* TOAST */
-  #toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: var(--gray-800);
-    color: white;
-    padding: 12px 22px;
-    border-radius: 30px;
-    font-family: 'Nunito', sans-serif;
-    font-weight: 700;
-    font-size: 14px;
-    z-index: 999;
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    white-space: nowrap;
-    pointer-events: none;
-  }
-  #toast.show { transform: translateX(-50%) translateY(0); }
-  #toast.green { background: var(--green); }
-  #toast.red   { background: var(--red); }
-
-  /* MODAL */
-  .modal-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 200;
-    align-items: flex-end;
-    justify-content: center;
-  }
-  .modal-backdrop.open { display: flex; }
-  .modal {
-    background: white;
-    border-radius: 20px 20px 0 0;
-    padding: 24px 20px;
-    width: 100%;
-    max-height: 85vh;
-    overflow-y: auto;
-  }
-  .modal-handle {
-    width: 40px;
-    height: 4px;
-    background: var(--gray-200);
-    border-radius: 2px;
-    margin: -10px auto 18px;
-  }
-  .modal-title {
-    font-family: 'Nunito', sans-serif;
-    font-weight: 800;
-    font-size: 17px;
-    margin-bottom: 16px;
-  }
-
-  .danger-zone {
-    border: 2px solid #fbd0d0;
-    border-radius: 12px;
-    padding: 14px;
-    margin-top: 10px;
-  }
-  .danger-zone p {
-    font-size: 13px;
-    color: var(--gray-500);
-    margin-bottom: 10px;
-  }
-
-  @media (min-width: 480px) {
-    .panel { max-width: 480px; margin: 0 auto; }
-    .tabs { max-width: 480px; margin: 0 auto; }
-  }
+/* MODAL */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; align-items: flex-end; }
+.modal-bg.open { display: flex; }
+.modal { background: #fff; border-radius: 20px 20px 0 0; padding: 24px 20px 32px; width: 100%; }
+.modal-handle { width: 40px; height: 4px; background: var(--gray3); border-radius: 2px; margin: -10px auto 18px; }
 </style>
 </head>
 <body>
 
 <header>
-  <span class="logo">📦</span>
+  <span style="font-size:22px">📦</span>
   <h1>Inventario Maestra<span>Libri & Materiale Scolastico</span></h1>
-  <div class="header-count" id="header-count">0 articoli</div>
+  <span class="count-badge" id="hcount">0 art.</span>
 </header>
 
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('scan')" id="tab-scan">
-    <span class="tab-icon">📷</span>Scansiona
-  </button>
-  <button class="tab-btn" onclick="switchTab('manual')" id="tab-manual">
-    <span class="tab-icon">✏️</span>Manuale
-  </button>
-  <button class="tab-btn" onclick="switchTab('list')" id="tab-list">
-    <span class="tab-icon">📋</span>Lista
-  </button>
-  <button class="tab-btn" onclick="switchTab('export')" id="tab-export">
-    <span class="tab-icon">📊</span>Esporta
-  </button>
+  <button class="tab active" data-tab="scan" onclick="switchTab('scan')"><span class="ti">📷</span>Scansiona</button>
+  <button class="tab" data-tab="manual" onclick="switchTab('manual')"><span class="ti">✏️</span>Manuale</button>
+  <button class="tab" data-tab="list" onclick="switchTab('list')"><span class="ti">📋</span>Lista</button>
+  <button class="tab" data-tab="export" onclick="switchTab('export')"><span class="ti">📊</span>Esporta</button>
 </div>
 
-<!-- SCAN PANEL -->
+<!-- ── SCAN ── -->
 <div class="panel active" id="panel-scan">
   <div class="card">
-    <div class="card-title">📷 Scansiona barcode libro</div>
-    <div id="video-container">
+    <div class="card-title">📷 Scansione barcode automatica</div>
+
+    <div id="viewfinder">
       <video id="video" playsinline autoplay muted></video>
-      <div class="scan-overlay"><div class="scan-frame"></div></div>
+      <div class="vf-off" id="vf-off"><span>📷</span><p>Fotocamera spenta</p></div>
+      <div class="scan-guide" id="scan-guide" style="display:none">
+        <div class="scan-box">
+          <div class="scan-line"></div>
+          <div class="corner tl"></div><div class="corner tr"></div>
+          <div class="corner bl"></div><div class="corner br"></div>
+        </div>
+      </div>
+      <div class="engine-badge" id="engine-badge" style="display:none"></div>
     </div>
-    <canvas id="canvas"></canvas>
+    <canvas id="canvas" style="display:none"></canvas>
 
-    <div id="scan-status" class="idle">⏸ Avvia la fotocamera per scansionare</div>
+    <div class="status idle" id="scan-status">Avvia la fotocamera e punta il barcode</div>
 
-    <div id="book-preview">
-      <div class="book-title" id="preview-title"></div>
-      <div class="book-meta" id="preview-meta"></div>
+    <div id="book-preview" class="book-preview" style="display:none">
+      <h3 id="bp-title"></h3>
+      <p id="bp-meta"></p>
     </div>
 
-    <div class="form-group" id="scan-qty-group" style="display:none">
-      <label>Quantità</label>
-      <div class="qty-stepper">
-        <button onclick="changeQty('scan', -1)">−</button>
-        <input type="number" id="scan-qty" value="1" min="1">
-        <button onclick="changeQty('scan', 1)">+</button>
+    <div id="scan-extras" style="display:none">
+      <div class="mb12">
+        <label>Quantità</label>
+        <div class="qty-wrap">
+          <button onclick="chQty('sq',-1)">−</button>
+          <input type="number" id="sq" value="1" min="1">
+          <button onclick="chQty('sq',1)">+</button>
+        </div>
+      </div>
+      <div class="mb14">
+        <label>Note (opzionale)</label>
+        <textarea id="snote" placeholder="Es. condizioni, scaffale..."></textarea>
       </div>
     </div>
-    <div class="form-group" id="scan-note-group" style="display:none">
-      <label>Note (opzionale)</label>
-      <textarea id="scan-note" placeholder="Es. condizioni, posizione..."></textarea>
-    </div>
 
-    <div style="display:flex; gap:10px; margin-top:4px">
-      <button class="btn btn-outline" id="cam-toggle-btn" onclick="toggleCamera()">▶ Avvia fotocamera</button>
-      <button class="btn btn-green" id="add-book-btn" onclick="addBookToList()" disabled>+ Aggiungi</button>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-outline" id="cam-btn" onclick="toggleCam()" style="flex:1">▶ Avvia fotocamera</button>
+      <button class="btn btn-green" id="add-book-btn" onclick="addBook()" disabled style="flex:1">+ Aggiungi</button>
     </div>
   </div>
 
-  <div class="card" style="background:var(--yellow-light); border: 2px solid #e8d87a;">
-    <div style="font-family:'Nunito',sans-serif; font-weight:700; font-size:13px; color:#7a6200; margin-bottom:6px">💡 Come funziona</div>
-    <div style="font-size:13px; color:#5a4a00; line-height:1.6">
-      Punta la fotocamera sul <strong>barcode ISBN</strong> del libro (di solito sul retro). L'app cerca automaticamente i dettagli e li aggiunge alla tua lista.
+  <div class="card mb14">
+    <div class="card-title">🔢 ISBN manuale</div>
+    <div style="display:flex;gap:8px">
+      <input type="number" id="manual-isbn" placeholder="Es. 9788858029039" style="flex:1">
+      <button class="btn btn-green btn-sm" onclick="searchManualIsbn()" style="width:auto;padding:0 18px">Cerca</button>
     </div>
+  </div>
+
+  <div class="tip">
+    <h4>💡 Suggerimenti</h4>
+    <p>• Avvicina il telefono al barcode (~15 cm)<br>• Buona luce, evita riflessi<br>• Il rilevamento è automatico, non serve premere nulla<br>• Su iPhone usa Safari aggiornato</p>
   </div>
 </div>
 
-<!-- MANUAL PANEL -->
+<!-- ── MANUAL ── -->
 <div class="panel" id="panel-manual">
   <div class="card">
-    <div class="card-title">✏️ Aggiungi articolo manualmente</div>
-
-    <div class="form-group">
-      <label>Nome articolo *</label>
-      <input type="text" id="m-name" placeholder="Es. Matite colorate Faber-Castell">
-    </div>
-
-    <div class="form-group">
+    <div class="card-title">✏️ Aggiungi articolo</div>
+    <div class="mb12"><label>Nome articolo *</label><input type="text" id="m-name" placeholder="Es. Matite colorate Faber-Castell"></div>
+    <div class="mb12">
       <label>Categoria *</label>
-      <select id="m-category">
-        <option value="">— Seleziona categoria —</option>
-        <optgroup label="📚 Libri & Lettura">
-          <option value="Libri di testo">Libri di testo</option>
-          <option value="Libri lettura">Libri lettura</option>
-          <option value="Dizionari e atlanti">Dizionari e atlanti</option>
-        </optgroup>
-        <optgroup label="✏️ Cancelleria">
-          <option value="Matite e penne">Matite e penne</option>
-          <option value="Pennarelli e colori">Pennarelli e colori</option>
-          <option value="Gomme e temperini">Gomme e temperini</option>
-          <option value="Righelli e compassi">Righelli e compassi</option>
-          <option value="Evidenziatori">Evidenziatori</option>
-        </optgroup>
-        <optgroup label="📁 Cartoleria">
-          <option value="Quaderni">Quaderni</option>
-          <option value="Diari e agende">Diari e agende</option>
-          <option value="Cartelline e raccoglitori">Cartelline e raccoglitori</option>
-          <option value="Carta e cartoncini">Carta e cartoncini</option>
-          <option value="Post-it e adesivi">Post-it e adesivi</option>
-        </optgroup>
-        <optgroup label="🎨 Arte e Creatività">
-          <option value="Acquerelli e tempere">Acquerelli e tempere</option>
-          <option value="Colla e forbici">Colla e forbici</option>
-          <option value="Materiale per collage">Materiale per collage</option>
-          <option value="Argilla e plastilina">Argilla e plastilina</option>
-        </optgroup>
-        <optgroup label="🖥️ Tecnologia">
-          <option value="Tablet e device">Tablet e device</option>
-          <option value="Accessori tech">Accessori tech</option>
-        </optgroup>
-        <optgroup label="🏫 Arredo e Organizzazione">
-          <option value="Zaini e astucci">Zaini e astucci</option>
-          <option value="Scatole e organizer">Scatole e organizer</option>
-          <option value="Bacheche e lavagne">Bacheche e lavagne</option>
-        </optgroup>
-        <optgroup label="🎲 Giochi Didattici">
-          <option value="Giochi da tavolo educativi">Giochi da tavolo educativi</option>
-          <option value="Puzzle e Memory">Puzzle e Memory</option>
-          <option value="Materiale Montessori">Materiale Montessori</option>
-        </optgroup>
-        <optgroup label="🔬 Scienze">
-          <option value="Materiale scientifico">Materiale scientifico</option>
-          <option value="Strumenti di misura">Strumenti di misura</option>
-        </optgroup>
+      <select id="m-cat">
+        <option value="">— Seleziona —</option>
+        <optgroup label="📚 Libri & Lettura"><option>Libri di testo</option><option>Libri lettura</option><option>Dizionari e atlanti</option></optgroup>
+        <optgroup label="✏️ Cancelleria"><option>Matite e penne</option><option>Pennarelli e colori</option><option>Gomme e temperini</option><option>Righelli e compassi</option><option>Evidenziatori</option></optgroup>
+        <optgroup label="📁 Cartoleria"><option>Quaderni</option><option>Diari e agende</option><option>Cartelline e raccoglitori</option><option>Carta e cartoncini</option><option>Post-it e adesivi</option></optgroup>
+        <optgroup label="🎨 Arte e Creatività"><option>Acquerelli e tempere</option><option>Colla e forbici</option><option>Materiale per collage</option><option>Argilla e plastilina</option></optgroup>
+        <optgroup label="🖥️ Tecnologia"><option>Tablet e device</option><option>Accessori tech</option></optgroup>
+        <optgroup label="🏫 Organizzazione"><option>Zaini e astucci</option><option>Scatole e organizer</option><option>Bacheche e lavagne</option></optgroup>
+        <optgroup label="🎲 Giochi Didattici"><option>Giochi da tavolo educativi</option><option>Puzzle e Memory</option><option>Materiale Montessori</option></optgroup>
+        <optgroup label="🔬 Scienze"><option>Materiale scientifico</option><option>Strumenti di misura</option></optgroup>
         <option value="Altro">Altro</option>
       </select>
     </div>
-
-    <div class="row-2">
-      <div class="form-group">
+    <div class="row2 mb12">
+      <div>
         <label>Quantità *</label>
-        <div class="qty-stepper">
-          <button onclick="changeQty('manual', -1)">−</button>
-          <input type="number" id="m-qty" value="1" min="1">
-          <button onclick="changeQty('manual', 1)">+</button>
-        </div>
+        <div class="qty-wrap"><button onclick="chQty('m-qty',-1)">−</button><input type="number" id="m-qty" value="1" min="1"><button onclick="chQty('m-qty',1)">+</button></div>
       </div>
-      <div class="form-group">
+      <div>
         <label>Unità</label>
-        <select id="m-unit">
-          <option value="pz">pz</option>
-          <option value="confezione">conf.</option>
-          <option value="set">set</option>
-          <option value="rotolo">rotolo</option>
-          <option value="foglio">foglio</option>
-          <option value="blocco">blocco</option>
-        </select>
+        <select id="m-unit"><option>pz</option><option>conf.</option><option>set</option><option>rotolo</option><option>foglio</option><option>blocco</option></select>
       </div>
     </div>
-
-    <div class="form-group">
-      <label>Marca / Produttore</label>
-      <input type="text" id="m-brand" placeholder="Es. Faber-Castell, BIC...">
-    </div>
-
-    <div class="form-group">
-      <label>Posizione / Scaffale</label>
-      <input type="text" id="m-location" placeholder="Es. Armadio A, Cassetto 2...">
-    </div>
-
-    <div class="form-group">
-      <label>Note</label>
-      <textarea id="m-notes" placeholder="Condizioni, colori disponibili, da riordinare..."></textarea>
-    </div>
-
-    <button class="btn btn-green" onclick="addManualItem()">+ Aggiungi alla lista</button>
+    <div class="mb12"><label>Marca</label><input type="text" id="m-brand" placeholder="Es. Faber-Castell, BIC..."></div>
+    <div class="mb12"><label>Posizione / Scaffale</label><input type="text" id="m-loc" placeholder="Es. Armadio A, Cassetto 2..."></div>
+    <div class="mb14"><label>Note</label><textarea id="m-notes" placeholder="Condizioni, colori, da riordinare..."></textarea></div>
+    <button class="btn btn-green" onclick="addManual()">+ Aggiungi alla lista</button>
   </div>
 </div>
 
-<!-- LIST PANEL -->
+<!-- ── LIST ── -->
 <div class="panel" id="panel-list">
-  <div class="inv-header">
-    <h2>La mia lista</h2>
-    <span class="item-count-badge" id="list-count">0</span>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <span style="font-weight:800;font-size:16px">La mia lista</span>
+    <span class="badge badge-qty" id="list-count" style="font-size:12px;padding:4px 11px">0</span>
   </div>
-
-  <div class="search-bar">
-    <span class="search-icon">🔍</span>
-    <input type="text" id="search-input" placeholder="Cerca articolo..." oninput="renderList()">
+  <div class="search-wrap"><span class="icon">🔍</span><input type="text" id="search" placeholder="Cerca articolo..." oninput="renderList()"></div>
+  <div class="chips" id="chips">
+    <button class="chip active" onclick="setFilter('Tutti',this)">Tutti</button>
+    <button class="chip" onclick="setFilter('📚',this)">📚 Libri</button>
+    <button class="chip" onclick="setFilter('✏️',this)">✏️ Cancelleria</button>
+    <button class="chip" onclick="setFilter('📁',this)">📁 Cartoleria</button>
+    <button class="chip" onclick="setFilter('🎨',this)">🎨 Arte</button>
+    <button class="chip" onclick="setFilter('🎲',this)">🎲 Giochi</button>
   </div>
-
-  <div class="filter-bar" id="filter-bar">
-    <button class="filter-chip active" onclick="setFilter('tutti', this)">Tutti</button>
-    <button class="filter-chip" onclick="setFilter('📚 Libri', this)">📚 Libri</button>
-    <button class="filter-chip" onclick="setFilter('✏️ Cancelleria', this)">✏️ Cancelleria</button>
-    <button class="filter-chip" onclick="setFilter('📁 Cartoleria', this)">📁 Cartoleria</button>
-    <button class="filter-chip" onclick="setFilter('🎨 Arte', this)">🎨 Arte</button>
-    <button class="filter-chip" onclick="setFilter('🎲 Giochi', this)">🎲 Giochi</button>
-  </div>
-
   <div id="item-list"></div>
 </div>
 
-<!-- EXPORT PANEL -->
+<!-- ── EXPORT ── -->
 <div class="panel" id="panel-export">
   <div class="card">
-    <div class="card-title">📊 Riepilogo inventario</div>
-    <div class="stats-grid">
-      <div class="stat-box">
-        <div class="stat-num" id="stat-total">0</div>
-        <div class="stat-label">Articoli totali</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-num" id="stat-qty">0</div>
-        <div class="stat-label">Quantità totale</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-num" id="stat-books">0</div>
-        <div class="stat-label">Libri scansionati</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-num" id="stat-manual">0</div>
-        <div class="stat-label">Articoli manuali</div>
-      </div>
+    <div class="card-title">📊 Riepilogo</div>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-num" id="s-total">0</div><div class="stat-label">Articoli</div></div>
+      <div class="stat-box"><div class="stat-num" id="s-qty">0</div><div class="stat-label">Quantità totale</div></div>
+      <div class="stat-box"><div class="stat-num" id="s-books">0</div><div class="stat-label">Libri</div></div>
+      <div class="stat-box"><div class="stat-num" id="s-manual">0</div><div class="stat-label">Manuali</div></div>
     </div>
   </div>
-
   <div class="card">
-    <div class="card-title">📥 Esporta in Excel</div>
-    <p style="font-size:13px; color:var(--gray-500); margin-bottom:14px; line-height:1.6">
-      Genera un file <strong>.xlsx</strong> con tutti gli articoli organizzati per categoria, pronto da aprire con Excel o Google Sheets.
-    </p>
-    <button class="btn btn-green" onclick="exportExcel()" style="margin-bottom:10px">
-      📊 Scarica Excel (.xlsx)
-    </button>
-    <button class="btn btn-outline" onclick="exportCSV()">
-      📄 Scarica CSV
-    </button>
+    <div class="card-title">📥 Esporta</div>
+    <p style="font-size:13px;color:#888;margin-bottom:14px;line-height:1.6">File <strong>.xlsx</strong> con 3 fogli: tutto, solo libri, solo materiale.</p>
+    <button class="btn btn-green mb12" onclick="exportExcel()">📊 Scarica Excel (.xlsx)</button>
+    <button class="btn btn-outline" onclick="exportCSV()">📄 Scarica CSV</button>
   </div>
-
   <div class="card">
-    <div class="card-title">💾 Backup dati</div>
-    <p style="font-size:13px; color:var(--gray-500); margin-bottom:14px; line-height:1.6">
-      Esporta i dati grezzi in JSON per tenerli al sicuro o importarli su un altro dispositivo.
-    </p>
-    <div style="display:flex; gap:10px">
-      <button class="btn btn-outline btn-sm" onclick="exportJSON()" style="width:auto;flex:1">⬇ Esporta JSON</button>
-      <label class="btn btn-outline btn-sm" style="width:auto;flex:1;cursor:pointer">
-        ⬆ Importa JSON
-        <input type="file" accept=".json" onchange="importJSON(this)" style="display:none">
-      </label>
+    <div class="card-title">💾 Backup</div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-outline" onclick="exportJSON()" style="flex:1">⬇ Esporta JSON</button>
+      <label class="btn btn-outline" style="flex:1;cursor:pointer">⬆ Importa JSON<input type="file" accept=".json" onchange="importJSON(this)" style="display:none"></label>
     </div>
   </div>
-
-  <div class="danger-zone">
-    <div style="font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; color:var(--red); margin-bottom:8px">⚠️ Zona pericolosa</div>
-    <p>Questa azione elimina permanentemente tutti gli articoli salvati.</p>
-    <button class="btn btn-red btn-sm" onclick="confirmClear()" style="width:100%">🗑 Cancella tutto l'inventario</button>
+  <div class="danger">
+    <h3>⚠️ Zona pericolosa</h3>
+    <p style="font-size:13px;color:#888;margin-bottom:10px">Elimina tutti gli articoli salvati.</p>
+    <button class="btn btn-red btn-sm" onclick="openClearModal()" style="width:100%">🗑 Cancella tutto</button>
   </div>
 </div>
 
-<!-- CONFIRM MODAL -->
-<div class="modal-backdrop" id="modal-clear">
+<!-- CLEAR MODAL -->
+<div class="modal-bg" id="modal-clear" onclick="if(event.target===this)closeClearModal()">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title">⚠️ Conferma eliminazione</div>
-    <p style="font-size:14px; color:var(--gray-500); margin-bottom:18px; line-height:1.6">
-      Sei sicura di voler eliminare <strong>tutti gli articoli</strong>? L'operazione non può essere annullata.
-    </p>
-    <div style="display:flex; gap:10px">
-      <button class="btn btn-outline" onclick="closeModal()">Annulla</button>
-      <button class="btn btn-red" onclick="clearAll()">Sì, elimina tutto</button>
+    <h2 style="font-size:17px;font-weight:800;margin-bottom:12px">⚠️ Conferma eliminazione</h2>
+    <p style="font-size:14px;color:#888;margin-bottom:18px;line-height:1.6">Sei sicura di voler eliminare <strong>tutti gli articoli</strong>? L'operazione non può essere annullata.</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-outline" onclick="closeClearModal()" style="flex:1">Annulla</button>
+      <button class="btn btn-red" onclick="clearAll()" style="flex:1">Sì, elimina tutto</button>
     </div>
   </div>
 </div>
@@ -836,501 +315,389 @@
 <div id="toast"></div>
 
 <script>
-// ─── STATE ────────────────────────────────────────────────────────────────────
-let inventory = JSON.parse(localStorage.getItem('maestra_inventory') || '[]');
+// ── STATE ──────────────────────────────────────────────────────────────────────
+const LS = 'maestra_v5';
+let inv = [];
+try { inv = JSON.parse(localStorage.getItem(LS) || '[]'); } catch {}
+let activeFilter = 'Tutti';
 let currentBook = null;
-let cameraActive = false;
-let stream = null;
-let scanInterval = null;
-let activeFilter = 'tutti';
+let camActive = false;
+let mediaStream = null;
+let scanLoop = null;
+let zxingReader = null;
+let lastCode = null;
 
-// ─── UTILS ────────────────────────────────────────────────────────────────────
-function save() {
-  localStorage.setItem('maestra_inventory', JSON.stringify(inventory));
-  updateCounts();
-}
+// ── UTILS ──────────────────────────────────────────────────────────────────────
+function save() { localStorage.setItem(LS, JSON.stringify(inv)); updateCounts(); }
 
-function toast(msg, type = '') {
+function toast(msg, type='') {
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = type;
+  el.textContent = msg; el.className = type;
   el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 2500);
 }
 
 function updateCounts() {
-  const total = inventory.length;
-  document.getElementById('header-count').textContent = total + (total === 1 ? ' articolo' : ' articoli');
-  document.getElementById('list-count').textContent = total;
-  renderStats();
+  const n = inv.length;
+  document.getElementById('hcount').textContent = n + ' art.';
+  document.getElementById('list-count').textContent = n;
+  const books = inv.filter(i=>i.type==='book');
+  const manual = inv.filter(i=>i.type==='manual');
+  const qty = inv.reduce((s,i)=>s+(parseInt(i.quantity)||1),0);
+  document.getElementById('s-total').textContent = n;
+  document.getElementById('s-qty').textContent = qty;
+  document.getElementById('s-books').textContent = books.length;
+  document.getElementById('s-manual').textContent = manual.length;
 }
 
-function renderStats() {
-  const books = inventory.filter(i => i.type === 'book');
-  const manual = inventory.filter(i => i.type === 'manual');
-  const totalQty = inventory.reduce((s, i) => s + (parseInt(i.quantity) || 1), 0);
-  document.getElementById('stat-total').textContent = inventory.length;
-  document.getElementById('stat-qty').textContent = totalQty;
-  document.getElementById('stat-books').textContent = books.length;
-  document.getElementById('stat-manual').textContent = manual.length;
+function chQty(id, d) {
+  const el = document.getElementById(id);
+  el.value = Math.max(1, (parseInt(el.value)||1) + d);
 }
 
-// ─── TABS ─────────────────────────────────────────────────────────────────────
+// ── TABS ───────────────────────────────────────────────────────────────────────
 function switchTab(name) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
-  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelector('[data-tab='+name+']').classList.add('active');
   if (name === 'list') renderList();
-  if (name === 'export') renderStats();
-  if (name !== 'scan' && cameraActive) stopCamera();
+  if (name === 'export') updateCounts();
+  if (name !== 'scan' && camActive) stopCam();
 }
 
-// ─── CAMERA & BARCODE SCANNING ────────────────────────────────────────────────
-async function toggleCamera() {
-  if (cameraActive) { stopCamera(); return; }
+// ── ZXING INIT ─────────────────────────────────────────────────────────────────
+function initZxing() {
+  return new Promise(resolve => {
+    if (window.ZXing) {
+      try {
+        const hints = new Map();
+        hints.set(2, [
+          ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+          ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.CODE_128
+        ]);
+        zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+        showEngine('ZXing ✓');
+        resolve(true);
+      } catch(e) { resolve(false); }
+    } else {
+      resolve(false);
+    }
+  });
+}
+
+function showEngine(txt) {
+  const b = document.getElementById('engine-badge');
+  b.textContent = txt; b.style.display = 'block';
+}
+
+// ── CAMERA ─────────────────────────────────────────────────────────────────────
+async function toggleCam() {
+  if (camActive) { stopCam(); return; }
+  await startCam();
+}
+
+async function startCam() {
+  setScanStatus('loading', '⏳ Avvio fotocamera...');
   try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
     });
     const video = document.getElementById('video');
-    video.srcObject = stream;
+    video.srcObject = mediaStream;
     await video.play();
-    cameraActive = true;
-    document.getElementById('cam-toggle-btn').textContent = '⏹ Ferma fotocamera';
-    setStatus('loading', '🔍 Scansione in corso...');
-    startScanning();
+    camActive = true;
+    document.getElementById('cam-btn').textContent = '⏹ Ferma fotocamera';
+    document.getElementById('vf-off').style.display = 'none';
+    document.getElementById('scan-guide').style.display = 'flex';
+
+    // Init ZXing if not done
+    if (!zxingReader) await initZxing();
+
+    setScanStatus('loading', '🔍 Punta il barcode del libro...');
+    lastCode = null;
+    startScanLoop();
   } catch(e) {
-    setStatus('error', '❌ Fotocamera non disponibile');
-    toast('Impossibile accedere alla fotocamera', 'red');
+    setScanStatus('err', '❌ Fotocamera non accessibile. Usa ISBN manuale.');
+    camActive = false;
   }
 }
 
-function stopCamera() {
-  if (stream) stream.getTracks().forEach(t => t.stop());
-  clearInterval(scanInterval);
-  cameraActive = false;
-  document.getElementById('cam-toggle-btn').textContent = '▶ Avvia fotocamera';
-  setStatus('idle', '⏸ Avvia la fotocamera per scansionare');
+function stopCam() {
+  if (scanLoop) { cancelAnimationFrame(scanLoop); scanLoop = null; }
+  if (mediaStream) { mediaStream.getTracks().forEach(t=>t.stop()); mediaStream = null; }
+  const video = document.getElementById('video');
+  video.srcObject = null;
+  camActive = false;
+  document.getElementById('cam-btn').textContent = '▶ Avvia fotocamera';
+  document.getElementById('vf-off').style.display = 'flex';
+  document.getElementById('scan-guide').style.display = 'none';
 }
 
-function startScanning() {
-  // Use BarcodeDetector API if available, fallback to canvas-based
-  if ('BarcodeDetector' in window) {
-    const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'code_128'] });
-    scanInterval = setInterval(async () => {
-      if (!cameraActive) return;
-      const video = document.getElementById('video');
-      if (video.readyState < 2) return;
-      try {
-        const barcodes = await detector.detect(video);
-        if (barcodes.length > 0) {
-          const code = barcodes[0].rawValue;
-          if (isISBN(code)) {
-            stopCamera();
-            fetchBook(code);
-          }
-        }
-      } catch(e) {}
-    }, 300);
-  } else {
-    // Canvas fallback with ZXing-style manual decode attempt
-    scanInterval = setInterval(() => {
-      if (!cameraActive) return;
-      const video = document.getElementById('video');
-      if (video.readyState < 2) return;
-      const canvas = document.getElementById('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
-      // Note: without a barcode library, we show a manual ISBN input fallback
-    }, 500);
-    // Show manual ISBN input since BarcodeDetector is unavailable
-    showManualISBN();
+function startScanLoop() {
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  let processing = false;
+
+  async function tick() {
+    if (!camActive) return;
+    if (!processing && video.readyState >= 2) {
+      processing = true;
+      let code = null;
+
+      // Try BarcodeDetector (Chrome Android)
+      if (!code && 'BarcodeDetector' in window) {
+        try {
+          const det = new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','code_128'] });
+          const res = await det.detect(video);
+          if (res.length) code = res[0].rawValue;
+        } catch {}
+      }
+
+      // Try ZXing on canvas (Safari + others)
+      if (!code && zxingReader) {
+        try {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+          ctx.drawImage(video, 0, 0);
+          const result = zxingReader.decodeFromCanvas(canvas);
+          if (result) code = result.getText();
+        } catch {}
+      }
+
+      if (code && code !== lastCode) {
+        lastCode = code;
+        stopCam();
+        setScanStatus('loading', `📦 Codice: ${code} — ricerca...`);
+        await fetchBook(code);
+      }
+      processing = false;
+    }
+    scanLoop = requestAnimationFrame(tick);
   }
+  scanLoop = requestAnimationFrame(tick);
 }
 
-function isISBN(code) {
-  return /^97[89]\d{10}$/.test(code) || /^\d{9}[\dX]$/.test(code) || /^\d{13}$/.test(code);
-}
-
-function showManualISBN() {
-  const statusEl = document.getElementById('scan-status');
-  statusEl.className = 'loading';
-  statusEl.innerHTML = `
-    <div style="width:100%">
-      <div style="margin-bottom:8px">📵 BarcodeDetector non supportato.<br>Inserisci ISBN manualmente:</div>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="manual-isbn" placeholder="Es. 9788804668237" style="flex:1;padding:8px 10px;font-size:13px;border-radius:8px;border:2px solid var(--gray-200)">
-        <button onclick="fetchBookFromInput()" style="padding:8px 12px;background:var(--green);color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">Cerca</button>
-      </div>
-    </div>
-  `;
-}
-
-function fetchBookFromInput() {
-  const isbn = document.getElementById('manual-isbn')?.value.trim();
-  if (!isbn) { toast('Inserisci un ISBN', 'red'); return; }
-  stopCamera();
-  fetchBook(isbn);
-}
-
-function setStatus(type, msg) {
+function setScanStatus(type, msg) {
   const el = document.getElementById('scan-status');
-  el.className = type;
+  el.className = 'status ' + type;
   el.textContent = msg;
 }
 
+// ── BOOK FETCH ─────────────────────────────────────────────────────────────────
 async function fetchBook(isbn) {
-  setStatus('loading', '⏳ Ricerca libro in corso...');
   currentBook = null;
   document.getElementById('book-preview').style.display = 'none';
-  document.getElementById('scan-qty-group').style.display = 'none';
-  document.getElementById('scan-note-group').style.display = 'none';
+  document.getElementById('scan-extras').style.display = 'none';
   document.getElementById('add-book-btn').disabled = true;
 
   try {
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&langRestrict=it`);
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
     const data = await res.json();
-
-    if (!data.items || data.items.length === 0) {
-      // Try without language restriction
-      const res2 = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-      const data2 = await res2.json();
-      if (!data2.items || data2.items.length === 0) {
-        setStatus('error', '❌ Libro non trovato. Prova ISBN diverso o inserimento manuale.');
-        return;
-      }
-      processBookData(data2.items[0], isbn);
-    } else {
-      processBookData(data.items[0], isbn);
+    if (!data.items?.length) {
+      setScanStatus('err', `❌ ISBN ${isbn} non trovato. Riprova o usa manuale.`);
+      return;
     }
-  } catch(e) {
-    setStatus('error', '❌ Errore di rete. Controlla la connessione.');
+    const info = data.items[0].volumeInfo;
+    currentBook = {
+      type: 'book', id: Date.now(),
+      name: info.title || 'Titolo sconosciuto',
+      author: (info.authors||[]).join(', ') || '—',
+      publisher: info.publisher || '—',
+      year: (info.publishedDate||'').substring(0,4) || '—',
+      pages: info.pageCount || '—',
+      isbn, language: info.language || '—',
+      category: 'Libri di testo',
+      addedAt: new Date().toLocaleDateString('it-IT'),
+    };
+    setScanStatus('ok', '✅ Libro trovato!');
+    document.getElementById('bp-title').textContent = currentBook.name;
+    document.getElementById('bp-meta').innerHTML =
+      (currentBook.author !== '—' ? `✍️ ${currentBook.author}<br>` : '') +
+      (currentBook.publisher !== '—' ? `🏢 ${currentBook.publisher} · ${currentBook.year}<br>` : '') +
+      `📖 ${currentBook.pages} pag. · ISBN: ${isbn}`;
+    document.getElementById('book-preview').style.display = 'block';
+    document.getElementById('scan-extras').style.display = 'block';
+    document.getElementById('add-book-btn').disabled = false;
+    document.getElementById('sq').value = 1;
+    document.getElementById('snote').value = '';
+  } catch {
+    setScanStatus('err', '❌ Errore di rete. Controlla la connessione.');
   }
 }
 
-function processBookData(item, isbn) {
-  const info = item.volumeInfo;
-  currentBook = {
-    type: 'book',
-    name: info.title || 'Titolo sconosciuto',
-    author: (info.authors || []).join(', ') || '—',
-    publisher: info.publisher || '—',
-    year: info.publishedDate ? info.publishedDate.substring(0, 4) : '—',
-    pages: info.pageCount || '—',
-    genre: (info.categories || ['—'])[0],
-    isbn: isbn,
-    language: info.language || '—',
-    category: 'Libro',
-    quantity: 1,
-    addedAt: new Date().toLocaleDateString('it-IT')
-  };
-
-  setStatus('success', '✅ Libro trovato!');
-  document.getElementById('preview-title').textContent = currentBook.name;
-  document.getElementById('preview-meta').innerHTML = `
-    ✍️ ${currentBook.author}<br>
-    🏢 ${currentBook.publisher} · ${currentBook.year}<br>
-    📖 ${currentBook.pages} pagine · ISBN: ${isbn}
-  `;
-  document.getElementById('book-preview').style.display = 'block';
-  document.getElementById('scan-qty-group').style.display = 'block';
-  document.getElementById('scan-note-group').style.display = 'block';
-  document.getElementById('add-book-btn').disabled = false;
+async function searchManualIsbn() {
+  const isbn = document.getElementById('manual-isbn').value.trim();
+  if (!isbn) { toast('Inserisci un ISBN', 'red'); return; }
+  setScanStatus('loading', '⏳ Ricerca in corso...');
+  await fetchBook(isbn);
 }
 
-function addBookToList() {
+function addBook() {
   if (!currentBook) return;
-  currentBook.quantity = parseInt(document.getElementById('scan-qty').value) || 1;
-  currentBook.notes = document.getElementById('scan-note').value.trim();
-  currentBook.id = Date.now();
-
-  inventory.push(currentBook);
+  inv.push({
+    ...currentBook,
+    quantity: parseInt(document.getElementById('sq').value)||1,
+    notes: document.getElementById('snote').value.trim(),
+    id: Date.now()
+  });
   save();
-  toast('📚 ' + currentBook.name + ' aggiunto!', 'green');
-
-  // Reset
+  toast('📚 ' + currentBook.name.substring(0,30) + ' aggiunto!', 'green');
   currentBook = null;
   document.getElementById('book-preview').style.display = 'none';
-  document.getElementById('scan-qty-group').style.display = 'none';
-  document.getElementById('scan-note-group').style.display = 'none';
+  document.getElementById('scan-extras').style.display = 'none';
   document.getElementById('add-book-btn').disabled = true;
-  document.getElementById('scan-qty').value = 1;
-  document.getElementById('scan-note').value = '';
-  setStatus('idle', '⏸ Avvia la fotocamera per scansionare');
+  setScanStatus('idle', 'Avvia la fotocamera e punta il barcode');
+  lastCode = null;
 }
 
-// ─── MANUAL ITEM ──────────────────────────────────────────────────────────────
-function addManualItem() {
+// ── MANUAL ITEM ────────────────────────────────────────────────────────────────
+function addManual() {
   const name = document.getElementById('m-name').value.trim();
-  const category = document.getElementById('m-category').value;
-  const qty = parseInt(document.getElementById('m-qty').value) || 1;
+  const cat  = document.getElementById('m-cat').value;
+  const qty  = parseInt(document.getElementById('m-qty').value)||1;
   const unit = document.getElementById('m-unit').value;
-  const brand = document.getElementById('m-brand').value.trim();
-  const location = document.getElementById('m-location').value.trim();
-  const notes = document.getElementById('m-notes').value.trim();
-
-  if (!name) { toast('Inserisci il nome dell\'articolo', 'red'); return; }
-  if (!category) { toast('Seleziona una categoria', 'red'); return; }
-
-  const item = {
-    id: Date.now(),
-    type: 'manual',
-    name, category, quantity: qty, unit, brand, location, notes,
-    addedAt: new Date().toLocaleDateString('it-IT')
-  };
-
-  inventory.push(item);
+  const brand= document.getElementById('m-brand').value.trim();
+  const loc  = document.getElementById('m-loc').value.trim();
+  const notes= document.getElementById('m-notes').value.trim();
+  if (!name) { toast('Inserisci il nome', 'red'); return; }
+  if (!cat)  { toast('Seleziona una categoria', 'red'); return; }
+  inv.push({ id: Date.now(), type:'manual', name, category:cat, quantity:qty, unit, brand, location:loc, notes, addedAt: new Date().toLocaleDateString('it-IT') });
   save();
-  toast('✅ ' + name + ' aggiunto!', 'green');
-
-  // Reset form
-  document.getElementById('m-name').value = '';
-  document.getElementById('m-category').value = '';
-  document.getElementById('m-qty').value = 1;
-  document.getElementById('m-brand').value = '';
-  document.getElementById('m-location').value = '';
-  document.getElementById('m-notes').value = '';
+  toast('✅ ' + name.substring(0,28) + ' aggiunto!', 'green');
+  ['m-name','m-brand','m-loc','m-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('m-cat').value='';
+  document.getElementById('m-qty').value=1;
 }
 
-// ─── QUANTITY STEPPER ─────────────────────────────────────────────────────────
-function changeQty(ctx, delta) {
-  const id = ctx === 'scan' ? 'scan-qty' : 'm-qty';
-  const el = document.getElementById(id);
-  el.value = Math.max(1, (parseInt(el.value) || 1) + delta);
-}
+// ── LIST ───────────────────────────────────────────────────────────────────────
+const CAT_ICON = { 'Matite e penne':'✏️','Pennarelli e colori':'🖊️','Gomme e temperini':'🧹','Quaderni':'📓','Acquerelli e tempere':'🎨','Colla e forbici':'✂️','Giochi da tavolo educativi':'🎲','Tablet e device':'📱','Zaini e astucci':'🎒','Bacheche e lavagne':'📌','Materiale scientifico':'🔬','Argilla e plastilina':'🫙','Evidenziatori':'🖍️','Puzzle e Memory':'🧩' };
+const CAT_GROUP = { 'Libri di testo':'📚','Libri lettura':'📚','Dizionari e atlanti':'📚','Matite e penne':'✏️','Pennarelli e colori':'✏️','Gomme e temperini':'✏️','Righelli e compassi':'✏️','Evidenziatori':'✏️','Quaderni':'📁','Diari e agende':'📁','Cartelline e raccoglitori':'📁','Carta e cartoncini':'📁','Post-it e adesivi':'📁','Acquerelli e tempere':'🎨','Colla e forbici':'🎨','Materiale per collage':'🎨','Argilla e plastilina':'🎨','Giochi da tavolo educativi':'🎲','Puzzle e Memory':'🎲','Materiale Montessori':'🎲' };
 
-// ─── LIST RENDERING ───────────────────────────────────────────────────────────
 function setFilter(f, el) {
   activeFilter = f;
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
   el.classList.add('active');
   renderList();
 }
 
-const catGroupMap = {
-  'Libri di testo': '📚 Libri', 'Libri lettura': '📚 Libri', 'Dizionari e atlanti': '📚 Libri', 'Libro': '📚 Libri',
-  'Matite e penne': '✏️ Cancelleria', 'Pennarelli e colori': '✏️ Cancelleria', 'Gomme e temperini': '✏️ Cancelleria',
-  'Righelli e compassi': '✏️ Cancelleria', 'Evidenziatori': '✏️ Cancelleria',
-  'Quaderni': '📁 Cartoleria', 'Diari e agende': '📁 Cartoleria', 'Cartelline e raccoglitori': '📁 Cartoleria',
-  'Carta e cartoncini': '📁 Cartoleria', 'Post-it e adesivi': '📁 Cartoleria',
-  'Acquerelli e tempere': '🎨 Arte', 'Colla e forbici': '🎨 Arte', 'Materiale per collage': '🎨 Arte', 'Argilla e plastilina': '🎨 Arte',
-  'Giochi da tavolo educativi': '🎲 Giochi', 'Puzzle e Memory': '🎲 Giochi', 'Materiale Montessori': '🎲 Giochi',
-};
-
 function renderList() {
-  const search = document.getElementById('search-input').value.toLowerCase();
-  let filtered = inventory.filter(item => {
-    const matchSearch = !search || item.name.toLowerCase().includes(search) ||
-      (item.author || '').toLowerCase().includes(search) ||
-      (item.category || '').toLowerCase().includes(search);
-    const group = catGroupMap[item.category] || '';
-    const matchFilter = activeFilter === 'tutti' || group === activeFilter || item.category === activeFilter;
-    return matchSearch && matchFilter;
+  const q = document.getElementById('search').value.toLowerCase();
+  const filtered = inv.filter(item => {
+    const g = item.type==='book' ? '📚' : (CAT_GROUP[item.category]||'');
+    const mf = activeFilter==='Tutti' || g===activeFilter;
+    const ms = !q || item.name.toLowerCase().includes(q) || (item.author||'').toLowerCase().includes(q);
+    return mf && ms;
   });
-
   const el = document.getElementById('item-list');
-  if (filtered.length === 0) {
-    el.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📦</div>
-        <p>${inventory.length === 0 ? 'Nessun articolo ancora' : 'Nessun risultato'}</p>
-        <span>${inventory.length === 0 ? 'Scansiona un libro o aggiungilo manualmente' : 'Prova a cambiare il filtro o la ricerca'}</span>
-      </div>`;
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty"><div class="ei">📦</div><p>${inv.length?'Nessun risultato':'Nessun articolo ancora'}</p><small>${inv.length?'Prova filtro diverso':'Scansiona o aggiungi manualmente'}</small></div>`;
     return;
   }
-
   el.innerHTML = filtered.map(item => {
-    const isBook = item.type === 'book';
-    const icon = isBook ? '📚' : getCatIcon(item.category);
+    const isBook = item.type==='book';
+    const icon = isBook ? '📚' : (CAT_ICON[item.category]||'📦');
     const meta = isBook
-      ? `${item.author ? `✍️ ${item.author}<br>` : ''}${item.publisher ? `🏢 ${item.publisher} · ${item.year}` : ''}`
-      : `${item.brand ? `🏷 ${item.brand} · ` : ''}${item.location ? `📍 ${item.location}` : ''}`;
-
-    return `
-      <div class="item-card">
-        <div class="item-icon ${isBook ? 'book' : 'item'}">${icon}</div>
-        <div class="item-body">
-          <div class="item-name">${escHtml(item.name)}</div>
-          <div class="item-meta">
-            <span class="qty-badge">×${item.quantity}${item.unit ? ' ' + item.unit : ''}</span>
-            <span class="cat-badge ${isBook ? 'libro' : ''}">${item.category || 'Altro'}</span>
-            ${meta ? `<br>${meta}` : ''}
-            ${item.notes ? `<br>💬 ${escHtml(item.notes)}` : ''}
-          </div>
-          <div class="item-actions">
-            <button class="btn btn-outline btn-sm" onclick="editQty(${item.id})">✏️ Qtà</button>
-            <button class="btn btn-sm" style="background:#fdeaea;color:var(--red);border:none" onclick="removeItem(${item.id})">🗑 Rimuovi</button>
-          </div>
+      ? (item.author&&item.author!=='—'?`✍️ ${item.author}<br>`:'') + (item.publisher&&item.publisher!=='—'?`🏢 ${item.publisher} · ${item.year}`:'')
+      : (item.brand?`🏷 ${item.brand}`:'') + (item.location?` · 📍 ${item.location}`:'');
+    return `<div class="item-card">
+      <div class="item-icon ${isBook?'book':'manual'}">${icon}</div>
+      <div class="item-body">
+        <div class="item-name">${esc(item.name)}</div>
+        <div class="item-meta">
+          <span class="badge badge-qty">×${item.quantity}${item.unit?' '+item.unit:''}</span>
+          <span class="badge badge-cat ${isBook?'book':''}">${item.category||'Altro'}</span>
+          ${meta?`<br>${meta}`:''}
+          ${item.notes?`<br>💬 ${esc(item.notes)}`:''}
         </div>
-      </div>`;
+        <div class="item-actions">
+          <button class="btn-edit" onclick="editQty(${item.id})">✏️ Qtà</button>
+          <button class="btn-del" onclick="removeItem(${item.id})">🗑 Rimuovi</button>
+        </div>
+      </div>
+    </div>`;
   }).join('');
 }
 
-function getCatIcon(cat) {
-  const map = {
-    'Matite e penne': '✏️', 'Pennarelli e colori': '🖊️', 'Quaderni': '📓',
-    'Acquerelli e tempere': '🎨', 'Colla e forbici': '✂️', 'Giochi da tavolo educativi': '🎲',
-    'Tablet e device': '📱', 'Zaini e astucci': '🎒', 'Bacheche e lavagne': '📌',
-    'Materiale scientifico': '🔬', 'Argilla e plastilina': '🫙',
-  };
-  return map[cat] || '📦';
-}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function escHtml(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function removeItem(id) {
-  inventory = inventory.filter(i => i.id !== id);
-  save();
-  renderList();
-  toast('Articolo rimosso');
-}
+function removeItem(id) { inv = inv.filter(i=>i.id!==id); save(); renderList(); toast('Articolo rimosso'); }
 
 function editQty(id) {
-  const item = inventory.find(i => i.id === id);
-  if (!item) return;
-  const newQty = prompt(`Quantità per "${item.name}":`, item.quantity);
-  if (newQty === null) return;
-  const q = parseInt(newQty);
-  if (isNaN(q) || q < 1) { toast('Quantità non valida', 'red'); return; }
-  item.quantity = q;
-  save();
-  renderList();
-  toast('Quantità aggiornata', 'green');
+  const item = inv.find(i=>i.id===id);
+  const v = prompt(`Quantità per "${item.name}":`, item.quantity);
+  if (v===null) return;
+  const q = parseInt(v);
+  if (!q||q<1) { toast('Quantità non valida','red'); return; }
+  item.quantity = q; save(); renderList(); toast('Quantità aggiornata','green');
 }
 
-// ─── EXPORT ───────────────────────────────────────────────────────────────────
+// ── EXPORT ─────────────────────────────────────────────────────────────────────
 function exportExcel() {
-  if (inventory.length === 0) { toast('Nessun articolo da esportare', 'red'); return; }
-
+  if (!inv.length) { toast('Nessun articolo','red'); return; }
   const wb = XLSX.utils.book_new();
-
-  // Sheet 1: Tutto
-  const allRows = inventory.map(i => ({
-    'Tipo': i.type === 'book' ? 'Libro' : 'Articolo',
-    'Nome / Titolo': i.name,
-    'Autore': i.author || '',
-    'Categoria': i.category || '',
-    'Quantità': i.quantity,
-    'Unità': i.unit || 'pz',
-    'Editore / Marca': i.publisher || i.brand || '',
-    'Anno': i.year || '',
-    'Pagine': i.pages || '',
-    'ISBN': i.isbn || '',
-    'Posizione': i.location || '',
-    'Note': i.notes || '',
-    'Data aggiunta': i.addedAt || '',
-  }));
-  const ws1 = XLSX.utils.json_to_sheet(allRows);
-  ws1['!cols'] = [10,30,25,20,10,8,25,8,8,15,20,30,14].map(w => ({wch:w}));
-  XLSX.utils.book_append_sheet(wb, ws1, '📦 Tutto');
-
-  // Sheet 2: Solo libri
-  const books = inventory.filter(i => i.type === 'book');
-  if (books.length > 0) {
-    const bookRows = books.map(i => ({
-      'Titolo': i.name, 'Autore': i.author || '', 'Editore': i.publisher || '',
-      'Anno': i.year || '', 'Pagine': i.pages || '', 'ISBN': i.isbn || '',
-      'Quantità': i.quantity, 'Note': i.notes || '', 'Data aggiunta': i.addedAt || '',
-    }));
-    const ws2 = XLSX.utils.json_to_sheet(bookRows);
-    ws2['!cols'] = [30,25,20,8,8,15,10,25,14].map(w => ({wch:w}));
-    XLSX.utils.book_append_sheet(wb, ws2, '📚 Libri');
+  const all = inv.map(i=>({'Tipo':i.type==='book'?'Libro':'Articolo','Nome / Titolo':i.name,'Autore':i.author||'','Categoria':i.category||'','Quantità':i.quantity,'Unità':i.unit||'pz','Editore / Marca':i.publisher||i.brand||'','Anno':i.year||'','ISBN':i.isbn||'','Posizione':i.location||'','Note':i.notes||'','Data':i.addedAt||''}));
+  const ws1 = XLSX.utils.json_to_sheet(all);
+  ws1['!cols'] = [10,30,25,18,10,8,22,8,15,18,28,14].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Tutto');
+  const books = inv.filter(i=>i.type==='book');
+  if (books.length) {
+    const ws2 = XLSX.utils.json_to_sheet(books.map(i=>({'Titolo':i.name,'Autore':i.author||'','Editore':i.publisher||'','Anno':i.year||'','Pagine':i.pages||'','ISBN':i.isbn||'','Quantità':i.quantity,'Note':i.notes||'','Data':i.addedAt||''})));
+    ws2['!cols']=[30,25,20,8,8,15,10,25,14].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws2, 'Libri');
   }
-
-  // Sheet 3: Articoli manuali
-  const manual = inventory.filter(i => i.type === 'manual');
-  if (manual.length > 0) {
-    const manualRows = manual.map(i => ({
-      'Articolo': i.name, 'Categoria': i.category || '', 'Marca': i.brand || '',
-      'Quantità': i.quantity, 'Unità': i.unit || 'pz', 'Posizione': i.location || '',
-      'Note': i.notes || '', 'Data aggiunta': i.addedAt || '',
-    }));
-    const ws3 = XLSX.utils.json_to_sheet(manualRows);
-    ws3['!cols'] = [25,20,20,10,8,20,25,14].map(w => ({wch:w}));
-    XLSX.utils.book_append_sheet(wb, ws3, '✏️ Materiale');
+  const manual = inv.filter(i=>i.type==='manual');
+  if (manual.length) {
+    const ws3 = XLSX.utils.json_to_sheet(manual.map(i=>({'Articolo':i.name,'Categoria':i.category||'','Marca':i.brand||'','Quantità':i.quantity,'Unità':i.unit||'pz','Posizione':i.location||'','Note':i.notes||'','Data':i.addedAt||''})));
+    ws3['!cols']=[25,20,20,10,8,20,25,14].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws3, 'Materiale');
   }
-
-  const date = new Date().toLocaleDateString('it-IT').replace(/\//g,'-');
-  XLSX.writeFile(wb, `inventario-maestra-${date}.xlsx`);
-  toast('✅ Excel scaricato!', 'green');
+  XLSX.writeFile(wb, `inventario-${new Date().toLocaleDateString('it-IT').replace(/\//g,'-')}.xlsx`);
+  toast('✅ Excel scaricato!','green');
 }
 
 function exportCSV() {
-  if (inventory.length === 0) { toast('Nessun articolo da esportare', 'red'); return; }
-  const rows = inventory.map(i =>
-    [i.type==='book'?'Libro':'Articolo', i.name, i.author||'', i.category||'',
-     i.quantity, i.unit||'pz', i.publisher||i.brand||'', i.year||'', i.isbn||'',
-     i.location||'', i.notes||'', i.addedAt||'']
-    .map(v => `"${String(v).replace(/"/g,'""')}"`)
-    .join(',')
-  );
-  const header = '"Tipo","Nome","Autore","Categoria","Quantità","Unità","Editore/Marca","Anno","ISBN","Posizione","Note","Data aggiunta"';
-  const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `inventario-${new Date().toLocaleDateString('it-IT').replace(/\//g,'-')}.csv`;
-  a.click();
-  toast('✅ CSV scaricato!', 'green');
+  if (!inv.length) { toast('Nessun articolo','red'); return; }
+  const hdr = '"Tipo","Nome","Autore","Categoria","Quantità","Unità","Editore/Marca","Anno","ISBN","Posizione","Note","Data"';
+  const rows = inv.map(i=>[i.type==='book'?'Libro':'Articolo',i.name,i.author||'',i.category||'',i.quantity,i.unit||'pz',i.publisher||i.brand||'',i.year||'',i.isbn||'',i.location||'',i.notes||'',i.addedAt||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  const blob = new Blob([hdr+'\n'+rows.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='inventario.csv'; a.click();
+  toast('✅ CSV scaricato!','green');
 }
 
 function exportJSON() {
-  const blob = new Blob([JSON.stringify(inventory, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'inventario-backup.json';
-  a.click();
-  toast('✅ Backup esportato!', 'green');
+  const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(inv,null,2)],{type:'application/json'})); a.download='inventario-backup.json'; a.click();
+  toast('✅ Backup esportato!','green');
 }
 
 function importJSON(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
+  const file = input.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
     try {
       const data = JSON.parse(e.target.result);
-      if (!Array.isArray(data)) throw new Error();
-      const merged = [...inventory];
-      let added = 0;
-      data.forEach(item => {
-        if (!inventory.find(i => i.id === item.id)) { merged.push(item); added++; }
-      });
-      inventory = merged;
-      save();
-      renderList();
-      toast(`✅ Importati ${added} nuovi articoli`, 'green');
-    } catch { toast('File JSON non valido', 'red'); }
+      if (!Array.isArray(data)) throw 0;
+      let added=0;
+      data.forEach(item=>{ if(!inv.find(i=>i.id===item.id)){inv.push(item);added++;} });
+      save(); renderList(); toast(`✅ Importati ${added} articoli`,'green');
+    } catch { toast('File non valido','red'); }
   };
-  reader.readAsText(file);
-  input.value = '';
+  r.readAsText(file); input.value='';
 }
 
-// ─── MODAL ────────────────────────────────────────────────────────────────────
-function confirmClear() {
-  document.getElementById('modal-clear').classList.add('open');
-}
-function closeModal() {
-  document.getElementById('modal-clear').classList.remove('open');
-}
-function clearAll() {
-  inventory = [];
-  save();
-  closeModal();
-  renderList();
-  toast('Inventario cancellato');
-}
-document.getElementById('modal-clear').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeModal();
-});
+function openClearModal() { document.getElementById('modal-clear').classList.add('open'); }
+function closeClearModal() { document.getElementById('modal-clear').classList.remove('open'); }
+function clearAll() { inv=[]; save(); closeClearModal(); renderList(); toast('Inventario cancellato'); }
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
+// ── INIT ───────────────────────────────────────────────────────────────────────
 updateCounts();
 renderList();
+
+// Pre-load ZXing as soon as page loads for faster first scan
+window.addEventListener('load', () => {
+  if (window.ZXing) initZxing();
+});
 </script>
 </body>
 </html>
