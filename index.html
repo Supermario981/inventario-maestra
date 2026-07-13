@@ -107,20 +107,25 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
   <button class="tab active" data-tab="scan" onclick="sw('scan')"><span style="font-size:18px">📷</span>Scansiona</button>
   <button class="tab" data-tab="manual" onclick="sw('manual')"><span style="font-size:18px">✏️</span>Manuale</button>
   <button class="tab" data-tab="list" onclick="sw('list')"><span style="font-size:18px">📋</span>Lista</button>
-  <button class="tab" data-tab="export" onclick="sw('export')"><span style="font-size:18px">📊</span>Esporta</button>
+  <button class="tab" data-tab="export" onclick="sw('export')"><span style="font-size:18px">📤</span>Esporta</button>
 </div>
 
 <!-- SCAN -->
 <div class="panel active" id="panel-scan">
 
   <div class="card" id="scan-card">
-    <div class="ct">📷 Fotografa il barcode</div>
+    <div class="ct">📷 Leggi il barcode</div>
 
-    <button class="photo-btn" onclick="triggerPhoto()">
+    <button class="photo-btn" id="cam-btn" onclick="startCamera()">
       <div class="icon">📷</div>
-      <div class="title">Tocca per fotografare</div>
-      <div class="sub">Punta sul barcode ISBN del libro</div>
+      <div class="title">Avvia fotocamera</div>
+      <div class="sub">Inquadra il barcode ISBN, la lettura è automatica</div>
     </button>
+    <video id="cam-video" autoplay playsinline muted style="display:none;width:100%;border-radius:10px;margin-bottom:12px;background:#000"></video>
+    <div id="cam-stop-wrap" style="display:none" class="mb12">
+      <button class="btn bo" onclick="stopCamera();document.getElementById('scan-st').className='st'">✕ Ferma fotocamera</button>
+    </div>
+    <button class="btn bo mb12" onclick="triggerPhoto()">🖼️ Oppure carica una foto</button>
     <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" onchange="onPhoto(this)">
     <img id="preview-img" alt="anteprima">
 
@@ -151,7 +156,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
 
   <div class="tip">
     <h4>💡 Come funziona</h4>
-    <p>• Fotografa il retro del libro con ISBN visibile<br>• Il barcode viene letto automaticamente (Chrome/Android)<br>• Se non viene letto, digita le 13 cifre nel campo ISBN qui sopra<br>• L'ISBN inizia sempre con 978 o 979</p>
+    <p>• Avvia la fotocamera e inquadra il barcode del libro<br>• Il barcode viene letto automaticamente e in continuo<br>• Appena riconosciuto, l'ISBN viene cercato da solo<br>• Se il browser non supporta la lettura live, usa "carica foto" o digita le 13 cifre nel campo ISBN</p>
   </div>
 </div>
 
@@ -166,10 +171,10 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
         <option value="">— Seleziona —</option>
         <optgroup label="📚 Libri"><option>Libri di testo</option><option>Libri lettura</option><option>Dizionari e atlanti</option></optgroup>
         <optgroup label="✏️ Cancelleria"><option>Matite e penne</option><option>Pennarelli e colori</option><option>Gomme e temperini</option><option>Righelli e compassi</option><option>Evidenziatori</option></optgroup>
-        <optgroup label="📁 Cartoleria"><option>Quaderni</option><option>Diari e agende</option><option>Cartelline e raccoglitori</option><option>Carta e cartoncini</option><option>Post-it e adesivi</option></optgroup>
+        <optgroup label="📓 Cartoleria"><option>Quaderni</option><option>Diari e agende</option><option>Cartelline e raccoglitori</option><option>Carta e cartoncini</option><option>Post-it e adesivi</option></optgroup>
         <optgroup label="🎨 Arte"><option>Acquerelli e tempere</option><option>Colla e forbici</option><option>Materiale per collage</option><option>Argilla e plastilina</option></optgroup>
         <optgroup label="🖥️ Tech"><option>Tablet e device</option><option>Accessori tech</option></optgroup>
-        <optgroup label="🏫 Organizzazione"><option>Zaini e astucci</option><option>Scatole e organizer</option><option>Bacheche e lavagne</option></optgroup>
+        <optgroup label="🎒 Organizzazione"><option>Zaini e astucci</option><option>Scatole e organizer</option><option>Bacheche e lavagne</option></optgroup>
         <optgroup label="🎲 Giochi"><option>Giochi da tavolo educativi</option><option>Puzzle e Memory</option><option>Materiale Montessori</option></optgroup>
         <optgroup label="🔬 Scienze"><option>Materiale scientifico</option><option>Strumenti di misura</option></optgroup>
         <option value="Altro">Altro</option>
@@ -197,7 +202,7 @@ input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
     <button class="chip active" onclick="setF('Tutti',this)">Tutti</button>
     <button class="chip" onclick="setF('📚',this)">📚 Libri</button>
     <button class="chip" onclick="setF('✏️',this)">✏️ Cancelleria</button>
-    <button class="chip" onclick="setF('📁',this)">📁 Cartoleria</button>
+    <button class="chip" onclick="setF('📓',this)">📓 Cartoleria</button>
     <button class="chip" onclick="setF('🎨',this)">🎨 Arte</button>
     <button class="chip" onclick="setF('🎲',this)">🎲 Giochi</button>
   </div>
@@ -237,8 +242,65 @@ const LS='maestra_v8';
 let inv=[];
 try{inv=JSON.parse(localStorage.getItem(LS)||'[]')}catch{}
 let flt='Tutti', curBook=null;
+let camStream=null, camRAF=null;
 
-// ── PHOTO HANDLER ─────────────────────────────────────────────────────────────
+// ── LIVE CAMERA BARCODE SCAN ────────────────────────────────────────────────
+async function startCamera(){
+  resetScan();
+  const stEl=document.getElementById('scan-st');
+
+  if(!('BarcodeDetector' in window)){
+    setSt(stEl,'warn','⚠️ Lettura live non supportata su questo browser. Usa "carica foto" oppure digita l\'ISBN.');
+    return;
+  }
+
+  try{
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+  }catch(e){
+    toast('Fotocamera non disponibile o permesso negato','red');
+    return;
+  }
+
+  const video=document.getElementById('cam-video');
+  video.srcObject=camStream;
+  video.style.display='block';
+  document.getElementById('cam-stop-wrap').style.display='block';
+  setSt(stEl,'load','🔍 Inquadra il barcode, lettura in corso...');
+
+  const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','code_128']});
+
+  const scanLoop=async()=>{
+    if(!camStream)return; // fermato nel frattempo
+    try{
+      const results=await det.detect(video);
+      if(results.length){
+        const raw=results[0].rawValue.replace(/[^0-9]/g,'');
+        if(raw.length>=10){
+          stopCamera();
+          document.getElementById('isbn-input').value=raw;
+          setSt(stEl,'load',`📦 ISBN: ${raw} → cerco libro...`);
+          const book=await fetchBook(raw);
+          if(!book){setSt(stEl,'err',`❌ ISBN ${raw} non trovato nel database.\nVerifica il numero o cercalo manualmente.`);return}
+          setSt(stEl,'ok','✅ Libro trovato!');
+          showBook(book);
+          return;
+        }
+      }
+    }catch(e){}
+    camRAF=requestAnimationFrame(scanLoop);
+  };
+  scanLoop();
+}
+
+function stopCamera(){
+  if(camRAF)cancelAnimationFrame(camRAF);
+  camRAF=null;
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}
+  document.getElementById('cam-video').style.display='none';
+  document.getElementById('cam-stop-wrap').style.display='none';
+}
+
+// ── PHOTO HANDLER (fallback statico) ────────────────────────────────────────
 function triggerPhoto(){
   document.getElementById('photo-input').click();
 }
@@ -271,7 +333,7 @@ async function onPhoto(input){
 
   // 2. Tesseract OCR — legge le cifre ISBN stampate nella foto
   if(!isbn){
-    setSt(stEl,'load','🔎 Lettura testo dalla foto...');
+    setSt(stEl,'load','🔍 Lettura testo dalla foto...');
     try{
       const worker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
       // Preprocess: scala a 1200px max per velocità
@@ -297,7 +359,7 @@ async function onPhoto(input){
   // 3. ISBN trovato (da BarcodeDetector o OCR) → compila campo e cerca
   if(isbn){
     document.getElementById('isbn-input').value=isbn;
-    setSt(stEl,'load',`📦 ISBN: ${isbn} — cerco libro...`);
+    setSt(stEl,'load',`📦 ISBN: ${isbn} → cerco libro...`);
     const book=await fetchBook(isbn);
     if(!book){setSt(stEl,'err',`❌ ISBN ${isbn} non trovato nel database.\nVerifica il numero o cercalo manualmente.`);return}
     setSt(stEl,'ok','✅ Libro trovato!');
@@ -306,14 +368,14 @@ async function onPhoto(input){
   }
 
   // 4. Nessun ISBN trovato → focus manuale
-  setSt(stEl,'warn','📝 ISBN non rilevato — digita le cifre qui sotto e premi Cerca.');
+  setSt(stEl,'warn','⚠ ISBN non rilevato — digita le cifre qui sotto e premi Cerca.');
   const isbnInput=document.getElementById('isbn-input');
   isbnInput.scrollIntoView({behavior:'smooth',block:'center'});
   setTimeout(()=>isbnInput.focus(),400);
 }
 
 
-// ── ISBN MANUAL ───────────────────────────────────────────────────────────────
+// ── ISBN MANUAL ──────────────────────────────────────────────────────────────
 async function searchIsbn(){
   const isbn=document.getElementById('isbn-input').value.trim().replace(/[^0-9X]/gi,'');
   if(isbn.length<10){toast('Inserisci un ISBN valido','red');return}
@@ -363,7 +425,7 @@ function mkBook(isbn,title,author,publisher,year,pages){
 function showBook(book){
   curBook=book;
   document.getElementById('bp-title').textContent=book.name;
-  document.getElementById('bp-meta').innerHTML=(book.author!=='—'?`✍️ ${book.author}<br>`:'')+( book.publisher!=='—'?`🏢 ${book.publisher}${book.year!=='—'?' · '+book.year:''}<br>`:'')+`📖 ${book.pages} pag. · ISBN: ${book.isbn}`;
+  document.getElementById('bp-meta').innerHTML=(book.author!=='—'?`✍️ ${book.author}<br>`:'')+( book.publisher!=='—'?`🏢 ${book.publisher}${book.year!=='—'?' · '+book.year:''}<br>`:'')+`📄 ${book.pages} pag. · ISBN: ${book.isbn}`;
   document.getElementById('book-area').style.display='block';
   document.getElementById('sq').value=1; document.getElementById('snote').value='';
   document.getElementById('book-area').scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -374,10 +436,11 @@ function setSt(el,type,msg){el.className='st show '+type;el.textContent=msg}
 function addBook(){
   if(!curBook)return;
   inv.push({...curBook,quantity:parseInt(document.getElementById('sq').value)||1,notes:document.getElementById('snote').value.trim(),id:Date.now()});
-  save(); toast('📚 '+curBook.name.substring(0,28)+' aggiunto!','green'); resetScan();
+  save(); toast('✅ '+curBook.name.substring(0,28)+' aggiunto!','green'); resetScan();
 }
 
 function resetScan(){
+  stopCamera();
   curBook=null;
   document.getElementById('preview-img').style.display='none';
   document.getElementById('preview-img').src='';
@@ -387,7 +450,7 @@ function resetScan(){
   document.getElementById('isbn-input').value='';
 }
 
-// ── UTILS ─────────────────────────────────────────────────────────────────────
+// ── UTILS ──────────────────────────────────────────────────────────────────────
 function save(){localStorage.setItem(LS,JSON.stringify(inv));upd()}
 function upd(){
   const n=inv.length,bk=inv.filter(i=>i.type==='book'),mn=inv.filter(i=>i.type==='manual'),q=inv.reduce((s,i)=>s+(parseInt(i.quantity)||1),0);
@@ -402,6 +465,7 @@ function toast(msg,type=''){
 }
 function cq(id,d){const el=document.getElementById(id);el.value=Math.max(1,(parseInt(el.value)||1)+d)}
 function sw(name){
+  if(name!=='scan')stopCamera();
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
@@ -421,9 +485,9 @@ function addManual(){
   document.getElementById('m-cat').value='';document.getElementById('m-qty').value=1;
 }
 
-// ── LIST ──────────────────────────────────────────────────────────────────────
-const CICON={'Matite e penne':'✏️','Pennarelli e colori':'🖊️','Gomme e temperini':'🧹','Quaderni':'📓','Acquerelli e tempere':'🎨','Colla e forbici':'✂️','Giochi da tavolo educativi':'🎲','Tablet e device':'📱','Zaini e astucci':'🎒','Bacheche e lavagne':'📌','Materiale scientifico':'🔬','Argilla e plastilina':'🫙','Evidenziatori':'🖍️','Puzzle e Memory':'🧩'};
-const CGR={'Libri di testo':'📚','Libri lettura':'📚','Dizionari e atlanti':'📚','Matite e penne':'✏️','Pennarelli e colori':'✏️','Gomme e temperini':'✏️','Righelli e compassi':'✏️','Evidenziatori':'✏️','Quaderni':'📁','Diari e agende':'📁','Cartelline e raccoglitori':'📁','Carta e cartoncini':'📁','Post-it e adesivi':'📁','Acquerelli e tempere':'🎨','Colla e forbici':'🎨','Materiale per collage':'🎨','Argilla e plastilina':'🎨','Giochi da tavolo educativi':'🎲','Puzzle e Memory':'🎲','Materiale Montessori':'🎲'};
+// ── LIST ────────────────────────────────────────────────────────────────────────
+const CICON={'Matite e penne':'✏️','Pennarelli e colori':'🖍️','Gomme e temperini':'🧹','Quaderni':'📓','Acquerelli e tempere':'🎨','Colla e forbici':'✂️','Giochi da tavolo educativi':'🎲','Tablet e device':'📱','Zaini e astucci':'🎒','Bacheche e lavagne':'📌','Materiale scientifico':'🔬','Argilla e plastilina':'🫙','Evidenziatori':'🖊️','Puzzle e Memory':'🧩'};
+const CGR={'Libri di testo':'📚','Libri lettura':'📚','Dizionari e atlanti':'📚','Matite e penne':'✏️','Pennarelli e colori':'✏️','Gomme e temperini':'✏️','Righelli e compassi':'✏️','Evidenziatori':'✏️','Quaderni':'📓','Diari e agende':'📓','Cartelline e raccoglitori':'📓','Carta e cartoncini':'📓','Post-it e adesivi':'📓','Acquerelli e tempere':'🎨','Colla e forbici':'🎨','Materiale per collage':'🎨','Argilla e plastilina':'🎨','Giochi da tavolo educativi':'🎲','Puzzle e Memory':'🎲','Materiale Montessori':'🎲'};
 
 function setF(f,el){flt=f;document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');renderList()}
 function renderList(){
@@ -446,7 +510,7 @@ function eq(id){
   i.quantity=q;save();renderList();toast('Aggiornata','green');
 }
 
-// ── EXPORT ────────────────────────────────────────────────────────────────────
+// ── EXPORT ──────────────────────────────────────────────────────────────────────
 function exportXlsx(){
   if(!inv.length){toast('Nessun articolo','red');return}
   const wb=XLSX.utils.book_new();
@@ -478,7 +542,7 @@ function importJson(input){
   r.readAsText(f);input.value='';
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
+// ── INIT ────────────────────────────────────────────────────────────────────────
 upd();renderList();
 </script>
 </body>
