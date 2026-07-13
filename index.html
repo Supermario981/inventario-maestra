@@ -6,6 +6,7 @@
 <title>Inventario Maestra</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 <style>
 :root{--g:#2D6A4F;--gl:#E8F5EE;--y:#F5C842;--yl:#FFFBEA;--r:#E05C5C;--bg:#F4F4EF;--b3:#DDD;--b4:#888}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -242,60 +243,48 @@ const LS='maestra_v8';
 let inv=[];
 try{inv=JSON.parse(localStorage.getItem(LS)||'[]')}catch{}
 let flt='Tutti', curBook=null;
-let camStream=null, camRAF=null;
+let zxingReader=null;
 
-// ── LIVE CAMERA BARCODE SCAN ────────────────────────────────────────────────
+// ── LIVE CAMERA BARCODE SCAN (ZXing — funziona su qualsiasi browser/desktop) ──
 async function startCamera(){
   resetScan();
   const stEl=document.getElementById('scan-st');
 
-  if(!('BarcodeDetector' in window)){
-    setSt(stEl,'warn','⚠️ Lettura live non supportata su questo browser. Usa "carica foto" oppure digita l\'ISBN.');
-    return;
-  }
-
-  try{
-    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-  }catch(e){
-    toast('Fotocamera non disponibile o permesso negato','red');
+  if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+    setSt(stEl,'warn','⚠️ Fotocamera non supportata su questo browser. Usa "carica foto" oppure digita l\'ISBN.');
     return;
   }
 
   const video=document.getElementById('cam-video');
-  video.srcObject=camStream;
   video.style.display='block';
   document.getElementById('cam-stop-wrap').style.display='block';
   setSt(stEl,'load','🔍 Inquadra il barcode, lettura in corso...');
 
-  const det=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','code_128']});
+  const hints=new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.EAN_13,ZXing.BarcodeFormat.EAN_8,ZXing.BarcodeFormat.UPC_A,ZXing.BarcodeFormat.CODE_128]);
+  zxingReader=new ZXing.BrowserMultiFormatReader(hints);
 
-  const scanLoop=async()=>{
-    if(!camStream)return; // fermato nel frattempo
-    try{
-      const results=await det.detect(video);
-      if(results.length){
-        const raw=results[0].rawValue.replace(/[^0-9]/g,'');
-        if(raw.length>=10){
-          stopCamera();
-          document.getElementById('isbn-input').value=raw;
-          setSt(stEl,'load',`📦 ISBN: ${raw} → cerco libro...`);
-          const book=await fetchBook(raw);
-          if(!book){setSt(stEl,'err',`❌ ISBN ${raw} non trovato nel database.\nVerifica il numero o cercalo manualmente.`);return}
-          setSt(stEl,'ok','✅ Libro trovato!');
-          showBook(book);
-          return;
-        }
-      }
-    }catch(e){}
-    camRAF=requestAnimationFrame(scanLoop);
-  };
-  scanLoop();
+  try{
+    await zxingReader.decodeFromConstraints({video:{facingMode:'environment'}},video,async(result,err)=>{
+      if(!result)return;
+      const raw=result.getText().replace(/[^0-9]/g,'');
+      if(raw.length<10)return;
+      stopCamera();
+      document.getElementById('isbn-input').value=raw;
+      setSt(stEl,'load',`📦 ISBN: ${raw} → cerco libro...`);
+      const book=await fetchBook(raw);
+      if(!book){setSt(stEl,'err',`❌ ISBN ${raw} non trovato nel database.\nVerifica il numero o cercalo manualmente.`);return}
+      setSt(stEl,'ok','✅ Libro trovato!');
+      showBook(book);
+    });
+  }catch(e){
+    stopCamera();
+    toast('Fotocamera non disponibile o permesso negato','red');
+  }
 }
 
 function stopCamera(){
-  if(camRAF)cancelAnimationFrame(camRAF);
-  camRAF=null;
-  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}
+  if(zxingReader){zxingReader.reset();zxingReader=null}
   document.getElementById('cam-video').style.display='none';
   document.getElementById('cam-stop-wrap').style.display='none';
 }
@@ -390,11 +379,25 @@ async function searchIsbn(){
   showBook(book);
 }
 
-// ── BOOK LOOKUP: Google Books → Open Library ──────────────────────────────────
+// ── BOOK LOOKUP: ISBNdb → Google Books → Open Library ─────────────────────────
+const ISBNDB_KEY='70454_5536e19da8266173949aab642d4c9d19';
+
 async function fetchBook(isbn){
   isbn=isbn.replace(/[^0-9X]/gi,'');
 
-  // 1. Google Books API — copertura molto migliore per libri italiani/scolastici
+  // 1. ISBNdb (trial a pagamento — copertura più ampia, incl. libri IT)
+  try{
+    const r=await fetch(`https://api2.isbndb.com/book/${isbn}`,{headers:{Authorization:ISBNDB_KEY},signal:AbortSignal.timeout(8000)});
+    if(r.ok){
+      const d=await r.json();
+      const b=d.book;
+      if(b){
+        return mkBook(isbn,b.title_long||b.title,(b.authors||[]).join(', '),b.publisher||'',b.date_published?String(b.date_published).slice(0,4):'—',b.pages);
+      }
+    }
+  }catch(e){}
+
+  // 2. Google Books API — copertura molto migliore per libri italiani/scolastici
   try{
     const r=await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`,{signal:AbortSignal.timeout(8000)});
     const d=await r.json();
@@ -404,7 +407,7 @@ async function fetchBook(isbn){
     }
   }catch(e){}
 
-  // 2. Open Library books API
+  // 3. Open Library books API
   try{
     const r=await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`,{signal:AbortSignal.timeout(8000)});
     const d=await r.json();
@@ -415,7 +418,7 @@ async function fetchBook(isbn){
     }
   }catch(e){}
 
-  // 3. Open Library search
+  // 4. Open Library search
   try{
     const r=await fetch(`https://openlibrary.org/search.json?isbn=${isbn}&fields=title,author_name,publisher,first_publish_year,number_of_pages_median&limit=1`,{signal:AbortSignal.timeout(8000)});
     const d=await r.json();
