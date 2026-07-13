@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Inventario Maestra</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 :root{--g:#2D6A4F;--gl:#E8F5EE;--y:#F5C842;--yl:#FFFBEA;--r:#E05C5C;--bg:#F4F4EF;--b3:#DDD;--b4:#888}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -255,9 +256,9 @@ async function onPhoto(input){
   img.src=url; img.style.display='block';
 
   const stEl=document.getElementById('scan-st');
-
-  // 1. Try BarcodeDetector (Chrome Android / Chrome desktop)
   let isbn=null;
+
+  // 1. BarcodeDetector (Chrome Android / Chrome desktop)
   if('BarcodeDetector' in window){
     setSt(stEl,'load','🔍 Lettura barcode...');
     try{
@@ -268,21 +269,45 @@ async function onPhoto(input){
     }catch(e){}
   }
 
-  // 2. Barcode trovato → cerca subito il libro
+  // 2. Tesseract OCR — legge le cifre ISBN stampate nella foto
+  if(!isbn){
+    setSt(stEl,'load','🔎 Lettura testo dalla foto...');
+    try{
+      const worker=await Tesseract.createWorker('eng',1,{logger:()=>{}});
+      // Preprocess: scala a 1200px max per velocità
+      const canvas=document.createElement('canvas');
+      const bmp=await createImageBitmap(file);
+      const scale=Math.min(1,1200/Math.max(bmp.width,bmp.height));
+      canvas.width=Math.round(bmp.width*scale);
+      canvas.height=Math.round(bmp.height*scale);
+      const ctx=canvas.getContext('2d');
+      // Contrasto aumentato per migliorare OCR su barcode stampati
+      ctx.filter='contrast(1.4) grayscale(1)';
+      ctx.drawImage(bmp,0,0,canvas.width,canvas.height);
+      const {data:{text}}=await worker.recognize(canvas);
+      await worker.terminate();
+      // Cerca pattern ISBN: 13 cifre che iniziano con 978 o 979
+      // Gestisce anche formati con trattini/spazi (es. "978-88-580-2903-9")
+      const clean=text.replace(/[\s\-]/g,'');
+      const match=clean.match(/97[89]\d{10}/);
+      if(match) isbn=match[0];
+    }catch(e){}
+  }
+
+  // 3. ISBN trovato (da BarcodeDetector o OCR) → compila campo e cerca
   if(isbn){
     document.getElementById('isbn-input').value=isbn;
     setSt(stEl,'load',`📦 ISBN: ${isbn} — cerco libro...`);
     const book=await fetchBook(isbn);
-    if(!book){setSt(stEl,'err',`❌ ISBN ${isbn} non trovato nel database.\nProva a cercarlo manualmente.`);return}
+    if(!book){setSt(stEl,'err',`❌ ISBN ${isbn} non trovato nel database.\nVerifica il numero o cercalo manualmente.`);return}
     setSt(stEl,'ok','✅ Libro trovato!');
     showBook(book);
     return;
   }
 
-  // 3. Barcode non letto → focus automatico sul campo ISBN manuale
-  setSt(stEl,'warn','📝 Barcode non rilevato — digita l\'ISBN qui sotto e premi Cerca.');
+  // 4. Nessun ISBN trovato → focus manuale
+  setSt(stEl,'warn','📝 ISBN non rilevato — digita le cifre qui sotto e premi Cerca.');
   const isbnInput=document.getElementById('isbn-input');
-  isbnInput.value='';
   isbnInput.scrollIntoView({behavior:'smooth',block:'center'});
   setTimeout(()=>isbnInput.focus(),400);
 }
